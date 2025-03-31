@@ -1,22 +1,20 @@
-[project]
+[tool.poetry]
 name = "skillpassage"
 version = "0.1.0"
-description = ""
-authors = [
-    {name = "FArooghOghba",email = "faroogh.oghba@gmail.com"}
-]
+description = "FastAPI-based online marketplace platform for Iranian professionals."
+authors = ["FArooghOghba <faroogh.oghba@gmail.com>"]
 readme = "README.md"
-requires-python = ">=3.10"
-dependencies = [
-    "fastapi (>=0.115.12,<0.116.0)",
-    "uvicorn[standard] (>=0.34.0,<0.35.0)",
-    "pydantic[email] (>=2.11.1,<3.0.0)",
-    "sqlalchemy[asyncio] (>=2.0.40,<3.0.0)",
-    "asyncpg (>=0.30.0,<0.31.0)",
-    "alembic (>=1.15.2,<2.0.0)",
-    "python-dotenv (>=1.1.0,<2.0.0)"
-]
+packages = [{include = "skillpassage"}]
 
+[tool.poetry.dependencies]
+python = ">=3.10"
+fastapi = ">=0.115.12,<0.116.0"
+uvicorn = {version = ">=0.34.0,<0.35.0", extras = ["standard"]}
+pydantic = {version = ">=2.11.1,<3.0.0", extras = ["email"]}
+sqlalchemy = {version = ">=2.0.40,<3.0.0", extras = ["asyncio"]}
+asyncpg = ">=0.30.0,<0.31.0"
+alembic = ">=1.15.2,<2.0.0"
+python-dotenv = ">=1.1.0,<2.0.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.4.4"
@@ -26,8 +24,41 @@ isort = "^5.13.2"
 flake8 = "^7.0.0"
 mypy = "^1.8.0"
 pre-commit = "^3.6.0"
-
+pydocstyle = {version = ">=6.3.0,<7.0.0", extras = ["toml"]}
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.isort]
+multi_line_output = 3
+lines_after_imports = 2
+include_trailing_comma = true
+force_grid_wrap = 0
+use_parentheses = true
+ensure_newline_before_comments = true
+line_length = 88
+
+[tool.flake8]
+max-line-length = 88
+max-linenumber = 500
+extend-ignore = "E203"
+exclude = [".git", "__pycache__", "build", "dist", "*.egg-info"]
+
+[tool.mypy]
+python_version = "3.10"
+strict = true
+ignore_missing_imports = true
+allow_untyped_decorators = true
+plugins = ["pydantic.mypy"]
+
+[tool.pydocstyle]
+convention = "google"
+add-select = [
+    "D101",  # Missing docstring in public class
+    "D102",  # Missing docstring in public method
+    "D103",  # Missing docstring in public function
+    "D205",  # 1 blank line required between summary line and description
+    "D400",  # First line should end with a period
+    "D415"   # First line should end with a period, question mark, or exclamation point
+]
