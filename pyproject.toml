@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "FastAPI-based online marketplace platform for Iranian professionals."
 authors = ["FArooghOghba <faroogh.oghba@gmail.com>"]
 readme = "README.md"
-packages = [{include = "skillpassage"}]
+packages = [{include = "src"}]
 
 [tool.poetry.dependencies]
 python = ">=3.10"
@@ -15,6 +15,7 @@ sqlalchemy = {version = ">=2.0.40,<3.0.0", extras = ["asyncio"]}
 asyncpg = ">=0.30.0,<0.31.0"
 alembic = ">=1.15.2,<2.0.0"
 python-dotenv = ">=1.1.0,<2.0.0"
+requests = "^2.31.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.4.4"

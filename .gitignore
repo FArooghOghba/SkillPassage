@@ -214,6 +214,7 @@ celerybeat.pid
 
 # Environments
 .env
+.env.test
 .venv
 env/
 venv/
@@ -263,6 +264,6 @@ poetry.toml
 pyrightconfig.json
 
 # Project Style Guide
-style_guide/
+#style_guide/
 
 # End of https://www.toptal.com/developers/gitignore/api/pycharm+all,python
