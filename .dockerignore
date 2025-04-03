@@ -1,0 +1,79 @@
+# Version control
+.git
+.gitignore
+.gitattributes
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg
+*.egg-info/
+dist/
+build/
+eggs/
+parts/
+bin/
+var/
+sdist/
+develop-eggs/
+.installed.cfg
+lib/
+lib64/
+
+# Virtual environments
+.env
+.env.test
+.venv
+env/
+venv/
+ENV/
+
+# IDE specific files
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Test coverage
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+.pytest_cache/
+coverage.xml
+*.cover
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Docker
+Dockerfile
+dev.Dockerfile
+docker-compose*.yml
+
+# Documentation
+docs/
+*.md
+!README.md
+
+# Cache directories
+.ruff_cache/
+
+# Local development
+*.log
+*.sqlite3
+*.db
+
+# Static & media files in development
+static/
+media/
+
+# Project Style Guide
+style_guide/

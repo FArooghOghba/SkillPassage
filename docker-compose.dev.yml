@@ -1,0 +1,90 @@
+version: "3.9"
+
+networks:
+  skill-passage-dev:
+    driver: bridge
+
+services:
+
+  db:
+    image: postgres:15.5
+    container_name: skill_passage_postgres
+    restart: on-failure
+    ports:
+      - "5432:5432"
+    env_file:
+      - .env
+    volumes:
+      - postgres-data:/var/lib/postgresql/data/
+    healthcheck:
+      test: [ "CMD-SHELL", "sh -c 'pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}'" ]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    networks:
+      - skill-passage-dev
+
+  pgadmin:
+    image: dpage/pgadmin4:8.0
+    container_name: skill_passage_pgadmin4
+    restart: on-failure
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: 'pg_pass'
+    ports:
+      - "5050:80"
+    healthcheck:
+      test: [ "CMD", "wget", "-O", "-", "http://localhost:80/misc/ping" ]
+      interval: 10s
+      timeout: 10s
+      retries: 3
+    networks:
+      - skill-passage-dev
+
+  fastapi:
+    build:
+      context: .
+      dockerfile: dev.Dockerfile
+    container_name: skill_passage_fastapi
+    restart: on-failure
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./src:/app/src
+      - ./poetry.lock:/app/poetry.lock
+      - ./pyproject.toml:/app/pyproject.toml
+      - static-data:/vol/web
+    env_file:
+      - .env
+    depends_on:
+      - db
+    command: sh /app/scripts/start-dev.sh
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8000')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 50s
+    networks:
+      - skill-passage-dev
+
+  test:
+    build:
+      context: .
+      dockerfile: dev.Dockerfile
+    container_name: skill_passage_test
+    volumes:
+      - ./src:/app/src
+      - ./tests:/app/tests
+    env_file:
+      - .env.test
+    depends_on:
+      db:
+        condition: service_healthy
+    command: sh /app/scripts/run-tests.sh
+    networks:
+      - skill-passage-dev
+
+volumes:
+    static-data:
+    postgres-data:
