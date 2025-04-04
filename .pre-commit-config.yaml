@@ -38,3 +38,6 @@ repos:
             - "types-requests"
             - "types-python-dateutil"
             - "pydantic>=2.11.1"
+            - "sqlalchemy>=2.0.40"
+            - "pydantic-settings>=2.8.1"
+            - "types-toml"

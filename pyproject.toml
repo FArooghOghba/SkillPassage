@@ -16,6 +16,7 @@ asyncpg = ">=0.30.0,<0.31.0"
 alembic = ">=1.15.2,<2.0.0"
 python-dotenv = ">=1.1.0,<2.0.0"
 requests = "^2.31.0"
+pydantic-settings = "^2.8.1"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.4.4"
@@ -26,6 +27,7 @@ flake8 = "^7.0.0"
 mypy = "^1.8.0"
 pre-commit = "^3.6.0"
 pydocstyle = {version = ">=6.3.0,<7.0.0", extras = ["toml"]}
+tomli = "^2.2.1"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
@@ -35,8 +37,9 @@ build-backend = "poetry.core.masonry.api"
 multi_line_output = 3
 lines_after_imports = 2
 include_trailing_comma = true
-force_grid_wrap = 0
+force_grid_wrap = 2
 use_parentheses = true
+combine_as_imports = true
 ensure_newline_before_comments = true
 line_length = 88
 
@@ -51,7 +54,14 @@ python_version = "3.10"
 strict = true
 ignore_missing_imports = true
 allow_untyped_decorators = true
-plugins = ["pydantic.mypy"]
+plugins = [
+    "pydantic.mypy",
+    "sqlalchemy.ext.mypy.plugin"
+]
+
+[[tool.mypy.overrides]]
+module = "sqlalchemy.*"
+ignore_missing_imports = true
 
 [tool.pydocstyle]
 convention = "google"
