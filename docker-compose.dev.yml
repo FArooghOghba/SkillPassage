@@ -51,8 +51,10 @@ services:
       - "8000:8000"
     volumes:
       - ./src:/app/src
+      - ./alembic:/app/alembic
       - ./poetry.lock:/app/poetry.lock
       - ./pyproject.toml:/app/pyproject.toml
+      - ./alembic.ini:/app/alembic.ini
       - static-data:/vol/web
     env_file:
       - .env
@@ -76,6 +78,8 @@ services:
     volumes:
       - ./src:/app/src
       - ./tests:/app/tests
+      - ./alembic:/app/alembic
+      - ./alembic.ini:/app/alembic.ini
     env_file:
       - .env.test
     depends_on:

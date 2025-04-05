@@ -26,7 +26,7 @@ ENV PYTHONUNBUFFERED=1 \
 WORKDIR /app
 
 # Create necessary directories
-RUN mkdir -p /app/src /app/tests
+RUN mkdir -p /app/src /app/tests /app/alembic
 
 # Copy poetry files
 COPY pyproject.toml poetry.lock ./
@@ -44,8 +44,10 @@ RUN apk add --no-cache \
     && poetry install --no-root \
     && chmod +x /app/scripts/*
 
-# Copy only necessary project files
+# Copy project files
 COPY src /app/src/
 COPY tests /app/tests/
+COPY alembic /app/alembic/
+COPY alembic.ini /app/
 
 EXPOSE 8000

@@ -3,7 +3,9 @@ repos:
     rev: v4.5.0
     hooks:
     -   id: trailing-whitespace
+        exclude: ^alembic/
     -   id: end-of-file-fixer
+        exclude: ^alembic/
     -   id: check-yaml
     -   id: check-added-large-files
 
@@ -18,17 +20,20 @@ repos:
     rev: 5.13.2
     hooks:
     -   id: isort
+        exclude: ^alembic/
 
 -   repo: https://github.com/pycqa/flake8
     rev: 7.0.0
     hooks:
     -   id: flake8
+        exclude: ^alembic/
 
 -   repo: https://github.com/pycqa/pydocstyle
     rev: 6.3.0
     hooks:
     -   id: pydocstyle
         additional_dependencies: [toml]
+        exclude: ^alembic/
 
 -   repo: https://github.com/pre-commit/mirrors-mypy
     rev: v1.8.0
@@ -41,3 +46,4 @@ repos:
             - "sqlalchemy>=2.0.40"
             - "pydantic-settings>=2.8.1"
             - "types-toml"
+        exclude: ^alembic/
