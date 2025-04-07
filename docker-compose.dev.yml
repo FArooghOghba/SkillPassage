@@ -70,6 +70,20 @@ services:
     networks:
       - skill-passage-dev
 
+  test_db:
+    image: postgres:15.5
+    container_name: skill_passage_postgres_test
+    restart: on-failure
+    env_file:
+      - .env.test
+    healthcheck:
+      test: [ "CMD-SHELL", "sh -c 'pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}'" ]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    networks:
+      - skill-passage-dev
+
   test:
     build:
       context: .
@@ -80,10 +94,14 @@ services:
       - ./tests:/app/tests
       - ./alembic:/app/alembic
       - ./alembic.ini:/app/alembic.ini
+      - ./pyproject.toml:/app/pyproject.toml
+      - ./poetry.lock:/app/poetry.lock
+      - ./scripts:/app/scripts
+      - ./htmlcov:/app/htmlcov
     env_file:
       - .env.test
     depends_on:
-      db:
+      test_db:
         condition: service_healthy
     command: sh /app/scripts/run-tests.sh
     networks:
