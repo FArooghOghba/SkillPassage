@@ -4,6 +4,11 @@ SQLAlchemy declarative base configuration.
 This module provides the base class for SQLAlchemy models,
 ensuring consistent model configuration across the application.
 """
+from sqlalchemy import (
+    Column,
+    DateTime,
+    func,
+)
 from sqlalchemy.orm import DeclarativeBase
 
 
@@ -21,3 +26,19 @@ class Base(DeclarativeBase):
     """
 
     pass
+
+
+class BaseModel(Base):
+    """Base model with timestamp fields."""
+
+    # Prevents SQLAlchemy from creating a table for this model
+    __abstract__ = True
+
+    created_at = Column(
+        DateTime,
+        server_default=func.now(), nullable=False
+    )
+    updated_at = Column(
+        DateTime,
+        server_default=func.now(), onupdate=func.now(), nullable=False
+    )
