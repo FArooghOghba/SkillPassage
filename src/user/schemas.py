@@ -1,0 +1,161 @@
+"""
+Pydantic schemas for user-related data validation and serialization.
+
+This module defines the schema classes used for validating and serializing
+user data throughout the application. It includes schemas for various
+user-related operations such as user creation, updates, and API responses.
+"""
+from uuid import UUID
+
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    EmailStr,
+    Field,
+)
+
+from src.user.utils import PhoneNumberMixin
+
+
+class UserBase(BaseModel, PhoneNumberMixin):
+    """
+    Base schema for user data validation.
+
+    This schema defines the common fields and validation rules shared across
+    different user-related operations. It inherits phone number validation
+    from PhoneNumberMixin.
+
+    Attributes:
+        email: User's email address, validated using EmailStr.
+        username: Alphanumeric username (including - and _).
+        first_name: User's first name.
+        last_name: User's last name.
+        phone_number: Optional phone number in E.164 format.
+    """
+
+    email: EmailStr
+    username: str = Field(
+        min_length=3,
+        max_length=64,
+        pattern="^[a-zA-Z0-9_-]+$",
+        description="Alphanumeric username with optional "
+                    "underscores and hyphens"
+    )
+    first_name: str = Field(
+        min_length=2,
+        max_length=50,
+        description="User's first name"
+    )
+    last_name: str = Field(
+        min_length=2,
+        max_length=50,
+        description="User's last name"
+    )
+    phone_number: str | None = Field(
+        default=None,
+        max_length=20,
+        pattern=r"^\+?[1-9]\d{1,14}$",
+        description="Phone number in E.164 format: +[country code][number]"
+    )
+
+
+class UserCreate(UserBase):
+    """
+    Schema for user creation requests.
+
+    Extends UserBase to include password field for new user registration.
+    Inherits all validation rules from UserBase.
+
+    Attributes:
+        password: Plain text password (will be hashed before storage).
+    """
+
+    password: str = Field(
+        min_length=8,
+        max_length=64,
+        description="User's password in plain text"
+    )
+
+
+class UserUpdate(BaseModel, PhoneNumberMixin):
+    """
+    Schema for user update requests.
+
+    Similar to UserBase but all fields are optional to allow partial updates.
+    Inherits phone number validation from PhoneNumberMixin.
+
+    Attributes:
+        All fields are optional versions of UserBase fields, plus password.
+    """
+
+    email: EmailStr | None = None
+    username: str | None = Field(
+        default=None,
+        min_length=3,
+        max_length=64,
+        pattern="^[a-zA-Z0-9_-]+$",
+        description="Alphanumeric username with optional"
+                    "underscores and hyphens"
+    )
+    first_name: str | None = Field(
+        default=None,
+        min_length=2,
+        max_length=50,
+        description="User's first name"
+    )
+    last_name: str | None = Field(
+        default=None,
+        min_length=2,
+        max_length=50,
+        description="User's last name"
+    )
+    phone_number: str | None = Field(
+        default=None,
+        max_length=20,
+        pattern=r"^\+?[1-9]\d{1,14}$",
+        description="Phone number in E.164 format: +[country code][number]"
+    )
+    password: str | None = Field(
+        default=None,
+        min_length=8,
+        max_length=64,
+        description="New password in plain text"
+    )
+
+
+class UserInDB(UserBase):
+    """
+    Schema representing user data as stored in the database.
+
+    Extends UserBase to include database-specific fields. Used internally
+    for database operations and should not be exposed to API clients.
+
+    Attributes:
+        id: Unique identifier for the user.
+        is_active: Flag indicating if the user account is active.
+        hashed_password: Securely hashed version of the user's password.
+    """
+
+    id: UUID
+    is_active: bool = True
+    hashed_password: str
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class User(UserBase):
+    """
+    Schema for user data in API responses.
+
+    Public-facing user schema that excludes sensitive information.
+    Used for API responses when returning user data to clients.
+
+    Attributes:
+        id: Unique identifier for the user.
+        is_active: Flag indicating if the user account is active.
+    """
+
+    id: UUID
+    is_active: bool = True
+
+    model_config = ConfigDict(from_attributes=True)
