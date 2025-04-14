@@ -1,8 +1,8 @@
 #!/bin/sh
 set -e
 
-echo "Updating dependencies..."
-poetry update
+#echo "Updating dependencies..."
+#poetry update
 
 echo "Running database migrations for test database..."
 poetry run alembic upgrade head
