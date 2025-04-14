@@ -17,6 +17,10 @@ alembic = ">=1.15.2,<2.0.0"
 python-dotenv = ">=1.1.0,<2.0.0"
 requests = "^2.31.0"
 pydantic-settings = "^2.8.1"
+bcrypt = ">=4.3.0,<4.4.0"
+passlib = {version = ">=1.7.4,<1.8.0", extras = ["bcrypt"]}
+cryptography = ">=44.0.0,<44.1.0"
+python-jose = {version = ">=3.4.0,<4.5.0", extras = ["cryptography"]}
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.4.4"
@@ -29,6 +33,10 @@ pre-commit = "^3.6.0"
 pydocstyle = {version = ">=6.3.0,<7.0.0", extras = ["toml"]}
 tomli = "^2.2.1"
 pytest-cov = "^6.1.1"
+factory-boy = ">=3.3.0,<3.4.0"
+faker = ">=37.1.0,<37.2.0"
+async-factory-boy = ">=1.0.1,<1.1.0"
+types-factory-boy = ">=0.4.1,<0.5.0"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
