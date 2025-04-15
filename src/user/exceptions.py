@@ -29,14 +29,37 @@ class UserError(HTTPException):  # type: ignore[misc]
 class UserNotFoundError(UserError):
     """Exception raised when a requested user is not found."""
 
-    def __init__(self, user_id: UUID | None = None) -> None:
+    def __init__(
+        self,
+        identifier: UUID | str | None = None,  # Accept UUID, string, or None
+        lookup_field: str = "ID"  # Specify which field was used
+    ) -> None:
         """
         Initialize user not found error.
 
         Args:
-            user_id: UUID of the user that was not found
+            identifier: The value (ID, email, username, etc.)
+            used for the lookup.
+            lookup_field: The name of the field used for the lookup
+            (e.g., "ID", "Email").
         """
-        message = f"User not found with ID: {user_id}"
+        # Create a user-friendly string representation of the identifier
+        id_str = str(identifier) if identifier is not None else "unknown"
+
+        # Construct a dynamic detail message
+        message = f"User not found with {lookup_field}: {id_str}"
+
+        # Call the parent __init__ with the standard 404 code
+        # and dynamic message
         super().__init__(
             status_code=status.HTTP_404_NOT_FOUND, detail=message
         )
+
+    def __str__(self) -> str:
+        """
+        Provide a string representation useful for direct assertion in tests.
+
+        Example: "404: User not found with Email: test@example.com"
+        """
+        # Matches the format often asserted using str(exc_info.value)
+        return f"{self.status_code}: {self.detail}"
