@@ -4,25 +4,227 @@ Unit tests for user service functions.
 This module contains test cases for the user service layer functions
 that handle core user operations such as retrieval, creation, updates,
 and deletion.
-Each test class focuses on a specific service function and includes
-both success and error cases.
-
-The tests use async pytest fixtures and factory boy for test data generation.
-Database operations are automatically rolled back after each test to ensure
-isolation.
 """
 from uuid import uuid4
 
 import pytest
 from faker import Faker
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.user.exceptions import UserNotFoundError
 from src.user.models import User
+from src.user.schemas import UserCreate
 from src.user.services import (
+    create_user,
     get_user_by_email,
     get_user_by_id,
 )
+
+
+@pytest.mark.asyncio
+class TestCreateUser:
+    """
+    Test suite for create_user service function.
+
+    This class contains tests that verify the behavior of the create_user
+    service function under various scenarios including:
+    - Successful user creation with all fields
+    - Handling of duplicate email/username constraints
+    - Optional phone number handling
+    - Password hashing verification
+
+    Each test method uses its own database transaction that is rolled back
+    after the test completes.
+    """
+
+    async def test_create_user_success(self, db_session: AsyncSession) -> None:
+        """
+        Test successful user creation with valid data.
+
+        Verifies that a user can be created with all required fields and
+        optional phone number. Checks that the user is properly stored in
+        the database with correct attributes and default values.
+
+        Args:
+            db_session: Async SQLAlchemy session for database operations.
+
+        Raises:
+            AssertionError: If any of the user attributes don't match
+                the expected values or if the user isn't properly stored
+                in the database.
+        """
+        fake = Faker()
+        user_data = UserCreate(
+            email=fake.email(),
+            username=fake.user_name(),
+            password=fake.password(),
+            first_name=fake.first_name(),
+            last_name=fake.last_name(),
+            phone_number=f"+1{fake.numerify(text='##########')}"
+        )
+
+        # Create user
+        created_user = await create_user(db=db_session, schema=user_data)
+
+        # Verify user attributes
+        assert created_user.id is not None
+        assert created_user.email == user_data.email
+        assert created_user.username == user_data.username
+        assert created_user.first_name == user_data.first_name
+        assert created_user.last_name == user_data.last_name
+        assert created_user.phone_number == user_data.phone_number
+        assert created_user.hashed_password != user_data.password
+        assert created_user.is_active is True
+
+        # Verify user exists in database
+        db_user = await get_user_by_email(
+            db=db_session, user_email=user_data.email
+        )
+        assert db_user is not None
+        assert db_user.email == user_data.email
+
+    async def test_service_create_user_with_existed_email_return_error(
+        self, db_session: AsyncSession, first_test_client_user: User
+    ) -> None:
+        """
+        Test user creation fails with duplicate email.
+
+        Verifies that attempting to create a user with an existing email
+        address raises an IntegrityError. This ensures the unique constraint
+        on the email field is working properly.
+
+        Args:
+            db_session: Async SQLAlchemy session for database operations.
+            first_test_client_user: Pre-created test user fixture.
+
+        Raises:
+            AssertionError: If the expected IntegrityError is not raised
+                or if the error message doesn't match the expected format.
+        """
+        fake = Faker()
+        existed_email = first_test_client_user.email
+
+        # Try to create second user with same email
+        user_data = UserCreate(
+            email=existed_email,  # Same email as first user
+            username=fake.user_name(),
+            password=fake.password(),
+            first_name=fake.first_name(),
+            last_name=fake.last_name(),
+            phone_number=f"+1{fake.numerify(text='##########')}"
+        )
+
+        with pytest.raises(IntegrityError) as exc_info:
+            await create_user(db=db_session, schema=user_data)
+
+        exec_msg = "duplicate key value violates unique constraint"
+        assert exec_msg in str(exc_info.value)
+
+    async def test_service_create_user_with_existed_username_return_error(
+        self, db_session: AsyncSession, first_test_client_user: User
+    ) -> None:
+        """
+        Test user creation fails with duplicate username.
+
+        Verifies that attempting to create a user with an existing username
+        raises an IntegrityError. This ensures the unique constraint on
+        the username field is working properly.
+
+        Args:
+            db_session: Async SQLAlchemy session for database operations.
+            first_test_client_user: Pre-created test user fixture.
+
+        Raises:
+            AssertionError: If the expected IntegrityError is not raised
+                or if the error message doesn't match the expected format.
+        """
+        fake = Faker()
+        existed_username = first_test_client_user.username
+
+        # Try to create second user with same username
+        user_data = UserCreate(
+            email=fake.email(),
+            username=existed_username,  # Same username as first user
+            password=fake.password(),
+            first_name=fake.first_name(),
+            last_name=fake.last_name(),
+            phone_number=f"+1{fake.numerify(text='##########')}"
+        )
+
+        with pytest.raises(IntegrityError) as exc_info:
+            await create_user(db=db_session, schema=user_data)
+
+        exec_msg = "duplicate key value violates unique constraint"
+        assert exec_msg in str(exc_info.value)
+
+    async def test_service_create_user_without_phone_number_return_success(
+        self, db_session: AsyncSession
+    ) -> None:
+        """
+        Test successful user creation without phone number.
+
+        Verifies that a user can be created with a null phone number,
+        ensuring that this field is truly optional in the system.
+
+        Args:
+            db_session: Async SQLAlchemy session for database operations.
+
+        Raises:
+            AssertionError: If the user creation fails or if the phone
+                number field is not properly handled as null.
+        """
+        fake = Faker()
+        user_data = UserCreate(
+            email=fake.email(),
+            username=fake.user_name(),
+            password=fake.password(),
+            first_name=fake.first_name(),
+            last_name=fake.last_name(),
+            phone_number=None
+        )
+
+        created_user = await create_user(db=db_session, schema=user_data)
+
+        assert created_user.phone_number is None
+        assert created_user.email == user_data.email
+
+    async def test_service_create_user_password_hashing(
+        self, db_session: AsyncSession
+    ) -> None:
+        """
+        Test that password is properly hashed during user creation.
+
+        Verifies that the user's password is properly hashed using bcrypt
+        before being stored in the database. Checks the hash format and
+        ensures the original password is not stored in plain text.
+
+        Args:
+            db_session: Async SQLAlchemy session for database operations.
+
+        Raises:
+            AssertionError: If the password is not properly hashed or if
+                the hash format doesn't match bcrypt's expected pattern.
+        """
+        fake = Faker()
+        password = "test_password"
+
+        user_data = UserCreate(
+            email=fake.email(),
+            username=fake.user_name(),
+            password=password,
+            first_name=fake.first_name(),
+            last_name=fake.last_name(),
+            phone_number=f"+1{fake.numerify(text='##########')}"
+        )
+
+        created_user = await create_user(db=db_session, schema=user_data)
+
+        # Verify password is hashed
+        user_hashed_password = created_user.hashed_password
+        assert user_hashed_password != password
+        assert user_hashed_password.startswith("$2b$")  # bcrypt hash prefix
+        assert len(created_user.hashed_password) > 50  # bcrypt hash length
 
 
 @pytest.mark.asyncio

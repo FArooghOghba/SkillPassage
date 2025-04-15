@@ -8,10 +8,16 @@ import logging
 from uuid import UUID
 
 from sqlalchemy import select
+from sqlalchemy.exc import (
+    IntegrityError,
+    SQLAlchemyError,
+)
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.auth.services import get_password_hash
 from src.user.exceptions import UserNotFoundError
 from src.user.models import User
+from src.user.schemas import UserCreate
 
 
 logger = logging.getLogger(__name__)
@@ -67,3 +73,73 @@ async def get_user_by_email(db: AsyncSession, user_email: str) -> User:
 
     logger.info(msg=f"Successfully retrieved user with Email: {user_email}")
     return user
+
+
+async def create_user(db: AsyncSession, schema: UserCreate) -> User:
+    """
+    Create a new user in the database.
+
+    Args:
+        db: Database session
+        schema: Validated user creation data
+
+    Returns:
+        User: The newly created user
+
+    Raises:
+        IntegrityError: If a user with the same email or username
+        already exists.
+        SQLAlchemyError: If there's any other database error during creation
+    """
+    # Hash the password before storing
+    hashed_password = get_password_hash(schema.password)
+
+    # Create new user instance
+    user = User(
+        email=schema.email,
+        username=schema.username,
+        first_name=schema.first_name,
+        last_name=schema.last_name,
+        phone_number=schema.phone_number,
+        hashed_password=hashed_password,
+    )
+
+    try:
+        # Add the user to the session
+        db.add(user)
+        # Flush to send INSERT to DB, generate ID, check constraints
+        await db.flush()
+        # Refresh to load the generated ID/defaults back onto the user object
+        await db.refresh(user)
+
+        logger.info(
+            msg="Successfully created user",
+            extra={
+                "email": user.email,
+                "username": user.username,
+                "user_id": str(user.id)
+            }
+        )
+        return user
+
+    except IntegrityError as e:
+        logger.error(
+            msg="Failed to create user - duplicate entry",
+            extra={
+                "email": schema.email,
+                "username": schema.username,
+                "error": str(e)
+            }
+        )
+        raise
+
+    except SQLAlchemyError as e:
+        logger.error(
+            msg="Failed to create user - database error",
+            extra={
+                "email": schema.email,
+                "username": schema.username,
+                "error": str(e)
+            }
+        )
+        raise
