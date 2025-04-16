@@ -14,11 +14,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.user.exceptions import UserNotFoundError
 from src.user.models import User
-from src.user.schemas import UserCreate
+from src.user.schemas import (
+    UserCreate,
+    UserUpdate,
+)
 from src.user.services import (
     create_user,
     get_user_by_email,
     get_user_by_id,
+    update_user,
 )
 
 
@@ -365,3 +369,180 @@ class TestGetUserByEmail:
         assert str(exc_info.value) == (
             f"404: User not found with Email: {non_existent_email}"
         )
+
+
+@pytest.mark.asyncio
+class TestUpdateUser:
+    """
+    Test suite for update_user service function.
+
+    This class contains tests that verify the behavior of the update_user
+    service function under various scenarios including:
+    - Successful user updates with different field combinations
+    - Handling of non-existent users
+    - Validation of unique constraints (email/username)
+    - Partial updates
+    """
+
+    async def test_service_update_user_success(
+        self, db_session: AsyncSession, first_test_client_user: User
+    ) -> None:
+        """
+        Test successful user update with all fields.
+
+        Verifies that a user can be updated with new values for all
+        updatable fields.
+
+        Args:
+            db_session: Async SQLAlchemy session for database operations.
+            first_test_client_user: Pre-created test user fixture.
+        """
+        fake = Faker()
+        update_data = UserUpdate(
+            email=fake.email(),
+            username=fake.user_name(),
+            first_name=fake.first_name(),
+            last_name=fake.last_name(),
+            phone_number=f"+1{fake.numerify(text='##########')}"
+        )
+
+        updated_user = await update_user(
+            db=db_session,
+            user_id=first_test_client_user.id,
+            schema=update_data
+        )
+
+        # Verify updated fields
+        assert updated_user.email == update_data.email
+        assert updated_user.username == update_data.username
+        assert updated_user.first_name == update_data.first_name
+        assert updated_user.last_name == update_data.last_name
+        assert updated_user.phone_number == update_data.phone_number
+
+        # Verify unchanged fields
+        assert updated_user.id == first_test_client_user.id
+        assert updated_user.is_active == first_test_client_user.is_active
+        assert updated_user.type == first_test_client_user.type
+
+    async def test_service_update_user_partial_success(
+        self, db_session: AsyncSession, first_test_client_user: User
+    ) -> None:
+        """
+        Test successful partial user update.
+
+        Verifies that a user can be updated with only some fields
+        changed while others remain unchanged.
+
+        Args:
+            db_session: Async SQLAlchemy session for database operations.
+            first_test_client_user: Pre-created test user fixture.
+        """
+        # Store original values
+        original_email = first_test_client_user.email
+        original_username = first_test_client_user.username
+        original_phone = first_test_client_user.phone_number
+
+        # Update only names
+        fake = Faker()
+        update_data = UserUpdate(
+            first_name=fake.first_name(),
+            last_name=fake.last_name()
+        )
+
+        updated_user = await update_user(
+            db=db_session,
+            user_id=first_test_client_user.id,
+            schema=update_data
+        )
+
+        # Verify updated fields
+        assert updated_user.first_name == update_data.first_name
+        assert updated_user.last_name == update_data.last_name
+
+        # Verify unchanged fields
+        assert updated_user.email == original_email
+        assert updated_user.username == original_username
+        assert updated_user.phone_number == original_phone
+
+    async def test_service_update_nonexistent_user_raises_error(
+        self, db_session: AsyncSession
+    ) -> None:
+        """
+        Test error handling when updating non-existent user.
+
+        Verifies that attempting to update a non-existent user
+        raises the appropriate UserNotFoundError.
+
+        Args:
+            db_session: Async SQLAlchemy session for database operations.
+        """
+        fake = Faker()
+        non_existent_id = uuid4()
+        update_data = UserUpdate(first_name=fake.first_name())
+
+        with pytest.raises(UserNotFoundError) as exc_info:
+            await update_user(
+                db=db_session,
+                user_id=non_existent_id,
+                schema=update_data
+            )
+
+        assert str(exc_info.value) == (
+            f"404: User not found with ID: {non_existent_id}"
+        )
+
+    async def test_service_update_user_with_existing_email_raises_error(
+        self, db_session: AsyncSession,
+        first_test_client_user: User,
+        second_test_client_user: User
+    ) -> None:
+        """
+        Test error handling when updating with existing email.
+
+        Verifies that attempting to update a user's email to one that
+        already exists raises an IntegrityError.
+
+        Args:
+            db_session: Async SQLAlchemy session for database operations.
+            first_test_client_user: First pre-created test user fixture.
+            second_test_client_user: Second pre-created test user fixture.
+        """
+        update_data = UserUpdate(email=second_test_client_user.email)
+
+        with pytest.raises(IntegrityError) as exc_info:
+            await update_user(
+                db=db_session,
+                user_id=first_test_client_user.id,
+                schema=update_data
+            )
+
+        exec_msg = "duplicate key value violates unique constraint"
+        assert exec_msg in str(exc_info.value)
+
+    async def test_service_update_user_with_existing_username_raises_error(
+        self, db_session: AsyncSession,
+        first_test_client_user: User,
+        second_test_client_user: User
+    ) -> None:
+        """
+        Test error handling when updating with existing username.
+
+        Verifies that attempting to update a user's username to one that
+        already exists raises an IntegrityError.
+
+        Args:
+            db_session: Async SQLAlchemy session for database operations.
+            first_test_client_user: First pre-created test user fixture.
+            second_test_client_user: Second pre-created test user fixture.
+        """
+        update_data = UserUpdate(username=second_test_client_user.username)
+
+        with pytest.raises(IntegrityError) as exc_info:
+            await update_user(
+                db=db_session,
+                user_id=first_test_client_user.id,
+                schema=update_data
+            )
+
+        exec_msg = "duplicate key value violates unique constraint"
+        assert exec_msg in str(exc_info.value)

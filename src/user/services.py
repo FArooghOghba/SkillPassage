@@ -17,7 +17,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.auth.services import get_password_hash
 from src.user.exceptions import UserNotFoundError
 from src.user.models import User
-from src.user.schemas import UserCreate
+from src.user.schemas import (
+    UserCreate,
+    UserUpdate,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -143,3 +146,44 @@ async def create_user(db: AsyncSession, schema: UserCreate) -> User:
             }
         )
         raise
+
+
+async def update_user(
+        db: AsyncSession, user_id: UUID, schema: UserUpdate
+) -> User:
+    """
+    Update an existing user's information.
+
+    Args:
+        db: Database session
+        user_id: UUID of the user to update
+        schema: Validated update data
+
+    Returns:
+        User: The updated user
+
+    Raises:
+        UserNotFoundError: If no user exists with the given ID
+        IntegrityError: If update violates unique constraints
+        SQLAlchemyError: If there's any other database error
+    """
+    # Get existing user
+    user = await get_user_by_id(db=db, user_id=user_id)
+
+    # Update user attributes if provided in schema
+    update_data = schema.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(user, field, value)
+
+    # Flush changes to check constraints and get updated user
+    await db.flush()
+    await db.refresh(user)
+
+    logger.info(
+        msg="Successfully updated user",
+        extra={
+            "user_id": str(user.id),
+            "updated_fields": list(update_data.keys())
+        }
+    )
+    return user
