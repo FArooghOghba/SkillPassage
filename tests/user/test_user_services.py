@@ -9,10 +9,12 @@ from uuid import uuid4
 
 import pytest
 from faker import Faker
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.user.exceptions import UserNotFoundError
+from src.user.exceptions import (
+    UserAlreadyExistsError,
+    UserNotFoundError,
+)
 from src.user.models import User
 from src.user.schemas import (
     UserCreate,
@@ -95,16 +97,18 @@ class TestCreateUser:
         Test user creation fails with duplicate email.
 
         Verifies that attempting to create a user with an existing email
-        address raises an IntegrityError. This ensures the unique constraint
-        on the email field is working properly.
+        address raises an UserAlreadyExistsError.
+        This ensures the unique constraint on the email field is working
+        properly.
 
         Args:
             db_session: Async SQLAlchemy session for database operations.
             first_test_client_user: Pre-created test user fixture.
 
         Raises:
-            AssertionError: If the expected IntegrityError is not raised
-                or if the error message doesn't match the expected format.
+            AssertionError: If the expected UserAlreadyExistsError
+            is not raised or if the error message doesn't match
+            the expected format.
         """
         fake = Faker()
         existed_email = first_test_client_user.email
@@ -119,11 +123,12 @@ class TestCreateUser:
             phone_number=f"+1{fake.numerify(text='##########')}"
         )
 
-        with pytest.raises(IntegrityError) as exc_info:
+        with pytest.raises(UserAlreadyExistsError) as exc_info:
             await create_user(db=db_session, schema=user_data)
 
-        exec_msg = "duplicate key value violates unique constraint"
-        assert exec_msg in str(exc_info.value)
+        assert str(exc_info.value.detail) == (
+            f"User already exists with Email: {existed_email}"
+        )
 
     async def test_service_create_user_with_existed_username_return_error(
         self, db_session: AsyncSession, first_test_client_user: User
@@ -132,16 +137,17 @@ class TestCreateUser:
         Test user creation fails with duplicate username.
 
         Verifies that attempting to create a user with an existing username
-        raises an IntegrityError. This ensures the unique constraint on
-        the username field is working properly.
+        raises an UserAlreadyExistsError. This ensures the unique constraint
+        on the username field is working properly.
 
         Args:
             db_session: Async SQLAlchemy session for database operations.
             first_test_client_user: Pre-created test user fixture.
 
         Raises:
-            AssertionError: If the expected IntegrityError is not raised
-                or if the error message doesn't match the expected format.
+            AssertionError: If the expected UserAlreadyExistsError is
+            not raised or if the error message doesn't match the expected
+            format.
         """
         fake = Faker()
         existed_username = first_test_client_user.username
@@ -156,11 +162,12 @@ class TestCreateUser:
             phone_number=f"+1{fake.numerify(text='##########')}"
         )
 
-        with pytest.raises(IntegrityError) as exc_info:
+        with pytest.raises(UserAlreadyExistsError) as exc_info:
             await create_user(db=db_session, schema=user_data)
 
-        exec_msg = "duplicate key value violates unique constraint"
-        assert exec_msg in str(exc_info.value)
+        assert str(exc_info.value.detail) == (
+            f"User already exists with Username: {existed_username}"
+        )
 
     async def test_service_create_user_without_phone_number_return_success(
         self, db_session: AsyncSession
@@ -500,24 +507,26 @@ class TestUpdateUser:
         Test error handling when updating with existing email.
 
         Verifies that attempting to update a user's email to one that
-        already exists raises an IntegrityError.
+        already exists raises an UserAlreadyExistsError.
 
         Args:
             db_session: Async SQLAlchemy session for database operations.
             first_test_client_user: First pre-created test user fixture.
             second_test_client_user: Second pre-created test user fixture.
         """
-        update_data = UserUpdate(email=second_test_client_user.email)
+        existed_email = second_test_client_user.email
+        update_data = UserUpdate(email=existed_email)
 
-        with pytest.raises(IntegrityError) as exc_info:
+        with pytest.raises(UserAlreadyExistsError) as exc_info:
             await update_user(
                 db=db_session,
                 user_id=first_test_client_user.id,
                 schema=update_data
             )
 
-        exec_msg = "duplicate key value violates unique constraint"
-        assert exec_msg in str(exc_info.value)
+        assert str(exc_info.value.detail) == (
+            f"User already exists with Email: {existed_email}"
+        )
 
     async def test_service_update_user_with_existing_username_raises_error(
         self, db_session: AsyncSession,
@@ -528,21 +537,23 @@ class TestUpdateUser:
         Test error handling when updating with existing username.
 
         Verifies that attempting to update a user's username to one that
-        already exists raises an IntegrityError.
+        already exists raises an UserAlreadyExistsError.
 
         Args:
             db_session: Async SQLAlchemy session for database operations.
             first_test_client_user: First pre-created test user fixture.
             second_test_client_user: Second pre-created test user fixture.
         """
-        update_data = UserUpdate(username=second_test_client_user.username)
+        existed_username = second_test_client_user.username
+        update_data = UserUpdate(username=existed_username)
 
-        with pytest.raises(IntegrityError) as exc_info:
+        with pytest.raises(UserAlreadyExistsError) as exc_info:
             await update_user(
                 db=db_session,
                 user_id=first_test_client_user.id,
                 schema=update_data
             )
 
-        exec_msg = "duplicate key value violates unique constraint"
-        assert exec_msg in str(exc_info.value)
+        assert str(exc_info.value.detail) == (
+            f"User already exists with Username: {existed_username}"
+        )

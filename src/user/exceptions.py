@@ -1,29 +1,13 @@
-"""Exception classes for handling various user operation errors."""
-
-from typing import Any
+"""User domain specific exceptions."""
 from uuid import UUID
 
-from fastapi import (
-    HTTPException,
-    status,
-)
+from fastapi import status
+
+from src.core.exceptions import BaseAPIError
 
 
-class UserError(HTTPException):  # type: ignore[misc]
+class UserError(BaseAPIError):
     """Base exception for user-related errors."""
-
-    def __init__(
-            self, status_code: int = status.HTTP_400_BAD_REQUEST,
-            detail: Any = None
-    ) -> None:
-        """
-        Initialize the base user error.
-
-        Args:
-            status_code: HTTP status code
-            detail: Error detail message
-        """
-        super().__init__(status_code=status_code, detail=detail)
 
 
 class UserNotFoundError(UserError):
@@ -31,35 +15,51 @@ class UserNotFoundError(UserError):
 
     def __init__(
         self,
-        identifier: UUID | str | None = None,  # Accept UUID, string, or None
-        lookup_field: str = "ID"  # Specify which field was used
+        identifier: UUID | str | None = None,
+        lookup_field: str = "ID"
     ) -> None:
-        """
-        Initialize user not found error.
+        """Initialize user not found error.
 
         Args:
-            identifier: The value (ID, email, username, etc.)
-            used for the lookup.
-            lookup_field: The name of the field used for the lookup
-            (e.g., "ID", "Email").
+            identifier: The value used for lookup (ID, email, username)
+            lookup_field: The field used for lookup (default: "ID")
         """
-        # Create a user-friendly string representation of the identifier
         id_str = str(identifier) if identifier is not None else "unknown"
+        detail = f"User not found with {lookup_field}: {id_str}"
+        super().__init__(status_code=status.HTTP_404_NOT_FOUND, detail=detail)
 
-        # Construct a dynamic detail message
-        message = f"User not found with {lookup_field}: {id_str}"
 
-        # Call the parent __init__ with the standard 404 code
-        # and dynamic message
+class UserAlreadyExistsError(UserError):
+    """Exception raised when attempting to create a duplicate user."""
+
+    def __init__(
+        self,
+        identifier: str,
+        lookup_field: str = "ID"
+    ) -> None:
+        """Initialize duplicate user error.
+
+        Args:
+            identifier: The value that caused the conflict (email, username)
+            lookup_field: The field that caused the conflict (default: "ID")
+        """
+        detail = f"User already exists with {lookup_field}: {identifier}"
         super().__init__(
-            status_code=status.HTTP_404_NOT_FOUND, detail=message
+            status_code=status.HTTP_409_CONFLICT,
+            detail=detail
         )
 
-    def __str__(self) -> str:
-        """
-        Provide a string representation useful for direct assertion in tests.
 
-        Example: "404: User not found with Email: test@example.com"
+class UserInactiveError(UserError):
+    """Exception raised when attempting to access an inactive user account."""
+
+    def __init__(self, user_id: UUID) -> None:
+        """Initialize inactive user error.
+
+        Args:
+            user_id: ID of the inactive user
         """
-        # Matches the format often asserted using str(exc_info.value)
-        return f"{self.status_code}: {self.detail}"
+        super().__init__(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"User account {user_id} is inactive"
+        )

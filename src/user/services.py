@@ -5,6 +5,7 @@ This module provides core functionality for user management operations,
 including user creation, retrieval, update, and deletion.
 """
 import logging
+import re
 from uuid import UUID
 
 from sqlalchemy import select
@@ -15,7 +16,10 @@ from sqlalchemy.exc import (
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.auth.services import get_password_hash
-from src.user.exceptions import UserNotFoundError
+from src.user.exceptions import (
+    UserAlreadyExistsError,
+    UserNotFoundError,
+)
 from src.user.models import User
 from src.user.schemas import (
     UserCreate,
@@ -43,7 +47,7 @@ async def get_user_by_id(db: AsyncSession, user_id: UUID) -> User:
     user: User | None = await db.get(entity=User, ident=user_id)
     if not user:
         logger.warning(msg=f"User not found with ID: {user_id}")
-        raise UserNotFoundError(user_id)
+        raise UserNotFoundError(identifier=user_id)
 
     logger.info(msg=f"Successfully retrieved user with ID: {user_id}")
     return user
@@ -126,23 +130,62 @@ async def create_user(db: AsyncSession, schema: UserCreate) -> User:
         return user
 
     except IntegrityError as e:
+        await db.rollback()
+
+        violated_field: str | None = None
+        identifier_value: str | None = None
+
+        # Attempt to parse the specific column from the error detail
+        # DETAIL: Key (column_name)=(value) already exists.
+        # Safely get detail string
+        error_detail = str(e.orig).lower()
+        match = re.search(
+            pattern=r"key \((?P<column>\w+)\)=\(", string=error_detail
+        )
+
+        if match:
+            column_name = match.group('column')
+
+            # Check if the parsed column name corresponds to
+            # a field we tried to update
+            if column_name == 'username':
+                violated_field = "Username"
+                identifier_value = schema.username
+            elif column_name == 'email':
+                violated_field = "Email"
+                identifier_value = schema.email
+
+        # If we identified a specific field from
+        # the detail AND it was in the update:
+        if violated_field and identifier_value is not None:
+            raise UserAlreadyExistsError(
+                identifier=identifier_value,
+                lookup_field=violated_field
+            ) from e
+
+        # Fallback: If parsing failed or didn't match update_data,
+        # log and re-raise generic IntegrityError
         logger.error(
-            msg="Failed to create user - duplicate entry",
+            msg="Integrity error during user update "
+                "(constraint violation parsing failed or unrelated)",
             extra={
                 "email": schema.email,
                 "username": schema.username,
-                "error": str(e)
+                "error": str(e),
+                "detail": error_detail,  # Log the detail we tried to parse
             }
         )
-        raise
+        raise  # Re-raise original IntegrityError
 
     except SQLAlchemyError as e:
+        await db.rollback()
+
         logger.error(
-            msg="Failed to create user - database error",
+            msg="Database error during user update",
             extra={
                 "email": schema.email,
                 "username": schema.username,
-                "error": str(e)
+                "error": str(e),
             }
         )
         raise
@@ -164,7 +207,8 @@ async def update_user(
 
     Raises:
         UserNotFoundError: If no user exists with the given ID
-        IntegrityError: If update violates unique constraints
+        UserAlreadyExistsError: If update violates unique constraints
+        (email/username)
         SQLAlchemyError: If there's any other database error
     """
     # Get existing user
@@ -175,15 +219,76 @@ async def update_user(
     for field, value in update_data.items():
         setattr(user, field, value)
 
-    # Flush changes to check constraints and get updated user
-    await db.flush()
-    await db.refresh(user)
+    try:
+        await db.flush()
+        await db.refresh(user)
 
-    logger.info(
-        msg="Successfully updated user",
-        extra={
-            "user_id": str(user.id),
-            "updated_fields": list(update_data.keys())
-        }
-    )
-    return user
+        logger.info(
+            msg="Successfully updated user",
+            extra={
+                "user_id": str(user.id),
+                "updated_fields": list(update_data.keys())
+            }
+        )
+        return user
+
+    except IntegrityError as e:
+        await db.rollback()
+
+        violated_field: str | None = None
+        identifier_value: str | None = None
+
+        # Attempt to parse the specific column from the error detail
+        # DETAIL: Key (column_name)=(value) already exists.
+        # Safely get detail string
+        error_detail = str(e.orig).lower()
+        match = re.search(
+            pattern=r"key \((?P<column>\w+)\)=\(", string=error_detail
+        )
+
+        if match:
+            column_name = match.group('column')
+
+            # Check if the parsed column name corresponds to
+            # a field we tried to update
+            if column_name == 'username' and 'username' in update_data:
+                violated_field = "Username"
+                identifier_value = update_data['username']
+            elif column_name == 'email' and 'email' in update_data:
+                violated_field = "Email"
+                identifier_value = update_data['email']
+
+        # If we identified a specific field from
+        # the detail AND it was in the update:
+        if violated_field and identifier_value is not None:
+            raise UserAlreadyExistsError(
+                identifier=identifier_value,
+                lookup_field=violated_field
+            ) from e
+
+        # Fallback: If parsing failed or didn't match update_data,
+        # log and re-raise generic IntegrityError
+        logger.error(
+            msg="Integrity error during user update "
+                "(constraint violation parsing failed or unrelated)",
+            extra={
+                "user_id": str(user_id),
+                "error": str(e),
+                "detail": error_detail,  # Log the detail we tried to parse
+                "updated_fields": list(update_data.keys())
+            }
+        )
+        raise  # Re-raise original IntegrityError
+
+    except SQLAlchemyError as e:
+        await db.rollback()
+
+        logger.error(
+            msg="Database error during user update",
+            extra={
+                "user_id": str(user_id),
+                "error": str(e),
+                "updated_fields": list(update_data.keys())
+            }
+        )
+        raise
