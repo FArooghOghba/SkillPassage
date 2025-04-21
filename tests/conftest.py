@@ -21,6 +21,7 @@ from tests.factories.user_factories import UserFactory
 # Register fixture plugins to make fixtures in other files discoverable
 pytest_plugins = [
     "tests.fixtures.user_fixtures",
+    "tests.fixtures.auth_fixtures",
     # Add other fixture modules here as needed:
     # "tests.fixtures.auth_fixtures",
     # "tests.fixtures.post_fixtures",
@@ -39,8 +40,7 @@ test_db_settings = DatabaseSettings(_env_file=".env.test")
 
 @pytest.fixture
 async def engine() -> AsyncGenerator[AsyncEngine, None]:
-    """
-    Provide a SQLAlchemy AsyncEngine scoped per test function.
+    """Provide a SQLAlchemy AsyncEngine scoped per test function.
 
     This fixture establishes a connection pool to the **test database**
     defined by `test_db_settings`. It's crucial for interacting with the
@@ -97,8 +97,7 @@ async def engine() -> AsyncGenerator[AsyncEngine, None]:
 async def async_session_maker(
     engine: AsyncEngine
 ) -> async_sessionmaker[AsyncSession]:
-    """
-    Provide a factory for creating new AsyncSession instances.
+    """Provide a factory for creating new AsyncSession instances.
 
     This fixture configures an `async_sessionmaker` which acts as a factory
     or blueprint for creating new database sessions. It's bound to the
@@ -136,8 +135,7 @@ async def async_session_maker(
 async def db_session(
     async_session_maker: async_sessionmaker[AsyncSession]
 ) -> AsyncGenerator[AsyncSession, None]:
-    """
-    Provide a transactional database session scoped per test function.
+    """Provide a transactional database session scoped per test function.
 
     This is the primary fixture for interacting with the database within
     individual tests. It creates an `AsyncSession` using the function-scoped
@@ -180,8 +178,7 @@ async def client(
         db_session: AsyncSession,
         test_app: FastAPI
 ) -> AsyncGenerator[AsyncClient, None]:
-    """
-    Create a test client for the FastAPI application.
+    """Create a test client for the FastAPI application.
 
     Provide an HTTP test client (`httpx.AsyncClient`) for making API requests.
     This fixture creates a test client configured to interact with the FastAPI
@@ -232,7 +229,7 @@ async def client(
 
     # Create and yield the test client within an async context manager
     async with AsyncClient(
-        app=test_app,
+        app=test_app,  # type: ignore
         base_url="http://test",  # Base URL for relative paths
         follow_redirects=True  # Automatically follow redirects
     ) as client:
@@ -245,8 +242,7 @@ async def client(
 
 @pytest.fixture
 def test_app() -> FastAPI:
-    """
-    Provides the FastAPI application instance for testing.
+    """Provides the FastAPI application instance for testing.
 
     **Scope:** Function (default `pytest.fixture` scope).
 
@@ -262,8 +258,7 @@ def test_app() -> FastAPI:
 
 @pytest.fixture(autouse=True)
 def set_session_for_factories(db_session: AsyncSession) -> None:
-    """
-    Automatically injects the test DB session into factory_boy factories.
+    """Automatically injects the test DB session into factory_boy factories.
 
     This is an `autouse` fixture, meaning it runs automatically for every
     test function without needing to be explicitly requested as an argument
