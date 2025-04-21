@@ -32,13 +32,15 @@ repos:
     rev: 6.3.0
     hooks:
     -   id: pydocstyle
-        additional_dependencies: [toml]
+        additional_dependencies:
+            - "tomli>=2.0.1"
         exclude: ^alembic/
 
 -   repo: https://github.com/pre-commit/mirrors-mypy
     rev: v1.8.0
     hooks:
     -   id: mypy
+        args: ["--explicit-package-bases"]
         additional_dependencies:
             # Type Stubs (mostly from dev group)
             - "types-requests"
@@ -49,7 +51,7 @@ repos:
 
             # Core Dependencies Mypy needs to see
             - "pydantic>=2.11.1"
-            - "sqlalchemy>=2.0.40"
+            - "sqlalchemy[asyncio]>=2.0.40"
             - "pydantic-settings>=2.8.1"
             - "fastapi>=0.115.12"
             - "passlib[bcrypt]>=1.7.4,<1.8.0"
