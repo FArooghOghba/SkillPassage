@@ -1,32 +1,30 @@
 """User-related database models."""
 from uuid import (
-    UUID as _UUID,
+    UUID,
     uuid4,
 )
 
 from sqlalchemy import (
     Boolean,
     CheckConstraint,
-    Enum as SQLAlchemyEnum,
     String,
 )
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import UUID as PostgresUUID
 from sqlalchemy.orm import (
     Mapped,
     mapped_column,
 )
 
 from src.db.base import BaseModel
-from src.user.constants import UserType
 
 
 class User(BaseModel):
-    """User model for storing user-related data."""
+    """User model for authentication and authorization."""
 
     __tablename__ = "users"
 
-    id: Mapped[_UUID] = mapped_column(
-        UUID(as_uuid=True),
+    id: Mapped[UUID] = mapped_column(
+        PostgresUUID(as_uuid=True),
         primary_key=True,
         default=uuid4,
         index=True
@@ -43,22 +41,8 @@ class User(BaseModel):
         nullable=False,
         index=True
     )
-    first_name: Mapped[str] = mapped_column(
-        String(length=50),
-        nullable=False
-    )
-    last_name: Mapped[str] = mapped_column(
-        String(length=50),
-        nullable=False
-    )
-    phone_number: Mapped[str | None] = mapped_column(String)
     hashed_password: Mapped[str] = mapped_column(
         String(length=1024),
-        nullable=False,
-    )
-    type: Mapped[UserType] = mapped_column(
-        SQLAlchemyEnum(UserType, name="user_type_enum", native_enum=True),
-        default=UserType.CLIENT,
         nullable=False,
     )
     is_active: Mapped[bool] = mapped_column(
@@ -81,7 +65,7 @@ class User(BaseModel):
 
     def __str__(self) -> str:
         """Return string representation of the user."""
-        return f"{self.first_name} {self.last_name} ({self.username})"
+        return f"User: {self.username}"
 
     def __repr__(self) -> str:
         """Return detailed string representation of the user."""
