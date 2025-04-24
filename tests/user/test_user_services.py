@@ -37,7 +37,6 @@ class TestCreateUser:
     service function under various scenarios including:
     - Successful user creation with all fields
     - Handling of duplicate email/username constraints
-    - Optional phone number handling
     - Password hashing verification
 
     Each test method uses its own database transaction that is rolled back
@@ -48,9 +47,9 @@ class TestCreateUser:
         """
         Test successful user creation with valid data.
 
-        Verifies that a user can be created with all required fields and
-        optional phone number. Checks that the user is properly stored in
-        the database with correct attributes and default values.
+        Verifies that a user can be created with all required fields.
+        Checks that the user is properly stored in the database with
+        correct attributes and default values.
 
         Args:
             db_session: Async SQLAlchemy session for database operations.
@@ -65,9 +64,6 @@ class TestCreateUser:
             email=fake.email(),
             username=fake.user_name(),
             password=fake.password(),
-            first_name=fake.first_name(),
-            last_name=fake.last_name(),
-            phone_number=f"+1{fake.numerify(text='##########')}"
         )
 
         # Create user
@@ -77,9 +73,6 @@ class TestCreateUser:
         assert created_user.id is not None
         assert created_user.email == user_data.email
         assert created_user.username == user_data.username
-        assert created_user.first_name == user_data.first_name
-        assert created_user.last_name == user_data.last_name
-        assert created_user.phone_number == user_data.phone_number
         assert created_user.hashed_password != user_data.password
         assert created_user.is_active is True
 
@@ -118,9 +111,6 @@ class TestCreateUser:
             email=existed_email,  # Same email as first user
             username=fake.user_name(),
             password=fake.password(),
-            first_name=fake.first_name(),
-            last_name=fake.last_name(),
-            phone_number=f"+1{fake.numerify(text='##########')}"
         )
 
         with pytest.raises(UserAlreadyExistsError) as exc_info:
@@ -156,10 +146,7 @@ class TestCreateUser:
         user_data = UserCreate(
             email=fake.email(),
             username=existed_username,  # Same username as first user
-            password=fake.password(),
-            first_name=fake.first_name(),
-            last_name=fake.last_name(),
-            phone_number=f"+1{fake.numerify(text='##########')}"
+            password=fake.password()
         )
 
         with pytest.raises(UserAlreadyExistsError) as exc_info:
@@ -168,37 +155,6 @@ class TestCreateUser:
         assert str(exc_info.value.detail) == (
             f"User already exists with Username: {existed_username}"
         )
-
-    async def test_service_create_user_without_phone_number_return_success(
-        self, db_session: AsyncSession
-    ) -> None:
-        """
-        Test successful user creation without phone number.
-
-        Verifies that a user can be created with a null phone number,
-        ensuring that this field is truly optional in the system.
-
-        Args:
-            db_session: Async SQLAlchemy session for database operations.
-
-        Raises:
-            AssertionError: If the user creation fails or if the phone
-                number field is not properly handled as null.
-        """
-        fake = Faker()
-        user_data = UserCreate(
-            email=fake.email(),
-            username=fake.user_name(),
-            password=fake.password(),
-            first_name=fake.first_name(),
-            last_name=fake.last_name(),
-            phone_number=None
-        )
-
-        created_user = await create_user(db=db_session, schema=user_data)
-
-        assert created_user.phone_number is None
-        assert created_user.email == user_data.email
 
     async def test_service_create_user_password_hashing(
         self, db_session: AsyncSession
@@ -223,10 +179,7 @@ class TestCreateUser:
         user_data = UserCreate(
             email=fake.email(),
             username=fake.user_name(),
-            password=password,
-            first_name=fake.first_name(),
-            last_name=fake.last_name(),
-            phone_number=f"+1{fake.numerify(text='##########')}"
+            password=password
         )
 
         created_user = await create_user(db=db_session, schema=user_data)
@@ -278,7 +231,6 @@ class TestGetUserById:
         assert user.email == first_test_client_user.email
         assert user.username == first_test_client_user.username
         assert user.is_active == first_test_client_user.is_active
-        assert user.type == first_test_client_user.type
 
     async def test_service_get_not_existing_user_by_id_raises_not_found(
         self, db_session: AsyncSession
@@ -347,7 +299,6 @@ class TestGetUserByEmail:
         assert user.email == first_test_client_user.email
         assert user.username == first_test_client_user.username
         assert user.is_active == first_test_client_user.is_active
-        assert user.type == first_test_client_user.type
 
     async def test_service_get_not_existing_user_by_email_raises_not_found(
         self, db_session: AsyncSession
@@ -407,10 +358,7 @@ class TestUpdateUser:
         fake = Faker()
         update_data = UserUpdate(
             email=fake.email(),
-            username=fake.user_name(),
-            first_name=fake.first_name(),
-            last_name=fake.last_name(),
-            phone_number=f"+1{fake.numerify(text='##########')}"
+            username=fake.user_name()
         )
 
         updated_user = await update_user(
@@ -422,14 +370,10 @@ class TestUpdateUser:
         # Verify updated fields
         assert updated_user.email == update_data.email
         assert updated_user.username == update_data.username
-        assert updated_user.first_name == update_data.first_name
-        assert updated_user.last_name == update_data.last_name
-        assert updated_user.phone_number == update_data.phone_number
 
         # Verify unchanged fields
         assert updated_user.id == first_test_client_user.id
         assert updated_user.is_active == first_test_client_user.is_active
-        assert updated_user.type == first_test_client_user.type
 
     async def test_service_update_user_partial_success(
         self, db_session: AsyncSession, first_test_client_user: User
@@ -446,14 +390,11 @@ class TestUpdateUser:
         """
         # Store original values
         original_email = first_test_client_user.email
-        original_username = first_test_client_user.username
-        original_phone = first_test_client_user.phone_number
 
         # Update only names
         fake = Faker()
         update_data = UserUpdate(
-            first_name=fake.first_name(),
-            last_name=fake.last_name()
+            username=fake.user_name()
         )
 
         updated_user = await update_user(
@@ -463,13 +404,10 @@ class TestUpdateUser:
         )
 
         # Verify updated fields
-        assert updated_user.first_name == update_data.first_name
-        assert updated_user.last_name == update_data.last_name
+        assert updated_user.username == update_data.username
 
         # Verify unchanged fields
         assert updated_user.email == original_email
-        assert updated_user.username == original_username
-        assert updated_user.phone_number == original_phone
 
     async def test_service_update_nonexistent_user_raises_error(
         self, db_session: AsyncSession
@@ -485,7 +423,7 @@ class TestUpdateUser:
         """
         fake = Faker()
         non_existent_id = uuid4()
-        update_data = UserUpdate(first_name=fake.first_name())
+        update_data = UserUpdate(username=fake.user_name())
 
         with pytest.raises(UserNotFoundError) as exc_info:
             await update_user(

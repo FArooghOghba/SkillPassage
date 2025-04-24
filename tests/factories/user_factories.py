@@ -1,11 +1,18 @@
 """User factory for generating test data."""
+from typing import Any
+
 from async_factory_boy.factory.sqlalchemy import AsyncSQLAlchemyFactory
-from factory import LazyFunction
+from factory import (
+    LazyAttribute,
+    LazyFunction,
+)
 from faker import Faker
 
 from src.auth.services import get_password_hash
-from src.user.constants import UserType
 from src.user.models import User
+
+
+fake = Faker()
 
 
 class UserFactory(AsyncSQLAlchemyFactory):  # type: ignore[misc]
@@ -22,10 +29,6 @@ class UserFactory(AsyncSQLAlchemyFactory):  # type: ignore[misc]
         sqlalchemy_session_persistence = "flush"
 
     # Basic user information
-    email = Faker("email")
-    username = Faker("user_name")
-    first_name = Faker("first_name")
-    last_name = Faker("last_name")
-    phone_number = Faker("phone_number")
+    email: Any = LazyAttribute(lambda _: fake.email())
+    username: Any = LazyAttribute(lambda _: fake.user_name())
     hashed_password = LazyFunction(lambda: get_password_hash("test_password"))
-    type = UserType.CLIENT.value
