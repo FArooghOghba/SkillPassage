@@ -1,5 +1,4 @@
-"""
-User service module for managing user-related business logic.
+"""User service module for managing user-related business logic.
 
 This module provides core functionality for user management operations,
 including user creation, retrieval, update, and deletion.
@@ -31,8 +30,7 @@ logger = logging.getLogger(__name__)
 
 
 async def get_user_by_id(db: AsyncSession, user_id: UUID) -> User:
-    """
-    Retrieve a user by their ID.
+    """Retrieve a user by their ID.
 
     Args:
         db: Database session
@@ -54,8 +52,7 @@ async def get_user_by_id(db: AsyncSession, user_id: UUID) -> User:
 
 
 async def get_user_by_email(db: AsyncSession, user_email: str) -> User:
-    """
-    Retrieve a user by their email address.
+    """Retrieve a user by their email address.
 
     Args:
         db: Database session
@@ -83,8 +80,7 @@ async def get_user_by_email(db: AsyncSession, user_email: str) -> User:
 
 
 async def create_user(db: AsyncSession, schema: UserCreate) -> User:
-    """
-    Create a new user in the database.
+    """Create a new user in the database.
 
     Args:
         db: Database session
@@ -105,9 +101,6 @@ async def create_user(db: AsyncSession, schema: UserCreate) -> User:
     user = User(
         email=schema.email,
         username=schema.username,
-        first_name=schema.first_name,
-        last_name=schema.last_name,
-        phone_number=schema.phone_number,
         hashed_password=hashed_password,
     )
 
@@ -194,8 +187,7 @@ async def create_user(db: AsyncSession, schema: UserCreate) -> User:
 async def update_user(
         db: AsyncSession, user_id: UUID, schema: UserUpdate
 ) -> User:
-    """
-    Update an existing user's information.
+    """Update an existing user's information.
 
     Args:
         db: Database session

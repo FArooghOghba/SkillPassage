@@ -1,5 +1,4 @@
-"""
-Pydantic schemas for user-related data validation and serialization.
+"""Pydantic schemas for user-related data validation and serialization.
 
 This module defines the schema classes used for validating and serializing
 user data throughout the application. It includes schemas for various
@@ -14,23 +13,16 @@ from pydantic import (
     Field,
 )
 
-from src.user.utils import PhoneNumberMixin
 
-
-class UserBase(BaseModel, PhoneNumberMixin):
-    """
-    Base schema for user data validation.
+class UserBase(BaseModel):
+    """Base schema for user data validation.
 
     This schema defines the common fields and validation rules shared across
-    different user-related operations. It inherits phone number validation
-    from PhoneNumberMixin.
+    different user-related operations.
 
     Attributes:
         email: User's email address, validated using EmailStr.
         username: Alphanumeric username (including - and _).
-        first_name: User's first name.
-        last_name: User's last name.
-        phone_number: Optional phone number in E.164 format.
     """
 
     email: EmailStr
@@ -41,27 +33,10 @@ class UserBase(BaseModel, PhoneNumberMixin):
         description="Alphanumeric username with optional "
                     "underscores and hyphens"
     )
-    first_name: str = Field(
-        min_length=2,
-        max_length=50,
-        description="User's first name"
-    )
-    last_name: str = Field(
-        min_length=2,
-        max_length=50,
-        description="User's last name"
-    )
-    phone_number: str | None = Field(
-        default=None,
-        max_length=20,
-        pattern=r"^\+?[1-9]\d{1,14}$",
-        description="Phone number in E.164 format: +[country code][number]"
-    )
 
 
 class UserCreate(UserBase):
-    """
-    Schema for user creation requests.
+    """Schema for user creation requests.
 
     Extends UserBase to include password field for new user registration.
     Inherits all validation rules from UserBase.
@@ -77,12 +52,11 @@ class UserCreate(UserBase):
     )
 
 
-class UserUpdate(BaseModel, PhoneNumberMixin):
-    """
-    Schema for user update requests.
+class UserUpdate(BaseModel):
+    """Schema for user update requests.
 
-    Similar to UserBase but all fields are optional to allow partial updates.
-    Inherits phone number validation from PhoneNumberMixin.
+    Similar to UserBase but all fields are optional to allow partial
+    updates.
 
     Attributes:
         All fields are optional versions of UserBase fields, plus password.
@@ -97,24 +71,6 @@ class UserUpdate(BaseModel, PhoneNumberMixin):
         description="Alphanumeric username with optional"
                     "underscores and hyphens"
     )
-    first_name: str | None = Field(
-        default=None,
-        min_length=2,
-        max_length=50,
-        description="User's first name"
-    )
-    last_name: str | None = Field(
-        default=None,
-        min_length=2,
-        max_length=50,
-        description="User's last name"
-    )
-    phone_number: str | None = Field(
-        default=None,
-        max_length=20,
-        pattern=r"^\+?[1-9]\d{1,14}$",
-        description="Phone number in E.164 format: +[country code][number]"
-    )
     password: str | None = Field(
         default=None,
         min_length=8,
@@ -124,8 +80,7 @@ class UserUpdate(BaseModel, PhoneNumberMixin):
 
 
 class UserInDB(UserBase):
-    """
-    Schema representing user data as stored in the database.
+    """Schema representing user data as stored in the database.
 
     Extends UserBase to include database-specific fields. Used internally
     for database operations and should not be exposed to API clients.
@@ -144,8 +99,7 @@ class UserInDB(UserBase):
 
 
 class User(UserBase):
-    """
-    Schema for user data in API responses.
+    """Schema for user data in API responses.
 
     Public-facing user schema that excludes sensitive information.
     Used for API responses when returning user data to clients.
