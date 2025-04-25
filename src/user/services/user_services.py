@@ -20,7 +20,7 @@ from src.user.exceptions import (
     UserNotFoundError,
 )
 from src.user.models import User
-from src.user.schemas import (
+from src.user.schemas.user_schemas import (
     UserCreate,
     UserUpdate,
 )

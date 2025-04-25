@@ -16,11 +16,11 @@ from src.user.exceptions import (
     UserNotFoundError,
 )
 from src.user.models import User
-from src.user.schemas import (
+from src.user.schemas.user_schemas import (
     UserCreate,
     UserUpdate,
 )
-from src.user.services import (
+from src.user.services.user_services import (
     create_user,
     get_user_by_email,
     get_user_by_id,
