@@ -15,7 +15,10 @@ from src.core.config import DatabaseSettings
 from src.db.base import Base
 from src.db.session import get_db
 from src.main import app
-from tests.factories.user_factories import UserFactory
+from tests.factories.user_factories import (
+    UserFactory,
+    UserProfileFactory,
+)
 
 
 # Register fixture plugins to make fixtures in other files discoverable
@@ -284,6 +287,7 @@ def set_session_for_factories(db_session: AsyncSession) -> None:
         is ready and triggers its execution for every test.
     """
     UserFactory._meta.sqlalchemy_session = db_session
+    UserProfileFactory._meta.sqlalchemy_session = db_session
     # Add other factories here as needed:
     # OtherFactory._meta.sqlalchemy_session = db_session
     # Example: PostFactory._meta.sqlalchemy_session = db_session
