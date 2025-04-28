@@ -45,6 +45,10 @@ class UserFactory(AsyncSQLAlchemyFactory):  # type: ignore[misc]
     def create_payload(cls) -> Dict[str, str]:
         """Generate a payload dictionary for creating a user.
 
+        This class method creates a consistent set of user data that can be
+        used for API testing or fixture creation. The generated payload
+        includes the email, username, and a randomly generated password with
+        a set of predefined complexity rules.
         A class method that creates a consistent set of user data that can be
         used for API testing or fixture creation.
 
@@ -55,7 +59,13 @@ class UserFactory(AsyncSQLAlchemyFactory):  # type: ignore[misc]
         return {
             'email': str(test_user.email),
             'username': str(test_user.username),
-            'password': 'test_password',
+            'password': fake.password(
+                length=12,
+                special_chars=True,
+                digits=True,
+                upper_case=True,
+                lower_case=True
+            )
         }
 
 
