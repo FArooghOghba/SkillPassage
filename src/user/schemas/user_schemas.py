@@ -4,7 +4,6 @@ This module defines the schema classes used for validating and serializing
 user data throughout the application. It includes schemas for various
 user-related operations such as user creation, updates, and API responses.
 """
-import re
 from uuid import UUID
 
 from pydantic import (
@@ -12,21 +11,9 @@ from pydantic import (
     ConfigDict,
     EmailStr,
     Field,
-    field_validator,
 )
 
-
-# Define password requirements clearly
-REQUIRED_LOWERCASE = True
-REQUIRED_UPPERCASE = True
-REQUIRED_DIGIT = True
-REQUIRED_SPECIAL = True
-
-# Define allowed special characters clearly if using regex check
-SPECIAL_CHARS_REGEX = r"[@$!%*?&_^)(#\-]"
-
-# Length check
-MIN_PASSWORD_LENGTH = 8
+from src.user.utils import PasswordValidationMixin
 
 
 class UserBase(BaseModel):
@@ -50,7 +37,7 @@ class UserBase(BaseModel):
     )
 
 
-class UserCreate(UserBase):
+class UserCreate(UserBase, PasswordValidationMixin):
     """Schema for user creation requests.
 
     Extends UserBase to include password field for new user registration.
@@ -64,57 +51,8 @@ class UserCreate(UserBase):
         description="User's password in plain text"
     )
 
-    @field_validator('password')
-    @classmethod
-    def validate_password_complexity(cls, password: str) -> str:
-        """Validate user password complexity.
 
-        Checks the password against the following rules:
-
-        - Minimum length
-        - Uppercase letter
-        - Lowercase letter
-        - Digit
-        - Special character (if using regex check)
-
-        Raises ValueError if any of the rules are violated.
-
-        Args:
-            password (str): The password to validate
-
-        Returns:
-            str: The validated password
-        """
-        errors = []
-        if len(password) < MIN_PASSWORD_LENGTH:
-            errors.append(
-                f"must be at least {MIN_PASSWORD_LENGTH} characters long"
-            )
-        if (REQUIRED_LOWERCASE and
-                not re.search(pattern=r"[a-z]", string=password)):
-            errors.append("must contain a lowercase letter")
-        if (REQUIRED_UPPERCASE and
-                not re.search(pattern=r"[A-Z]", string=password)):
-            errors.append("must contain an uppercase letter")
-        if (REQUIRED_DIGIT and
-                not re.search(pattern=r"\d", string=password)):
-            errors.append("must contain a digit")
-        if (REQUIRED_SPECIAL and
-                not re.search(pattern=SPECIAL_CHARS_REGEX, string=password)):
-            errors.append(
-                f"must contain a special character ({SPECIAL_CHARS_REGEX})"
-            )
-
-        if errors:
-            # Combine errors for a single clear message
-            raise ValueError(
-                f"Password validation failed: {'; '.join(errors)}"
-            )
-
-        return password
-
-
-class UserUpdate(BaseModel):
+class UserUpdate(BaseModel, PasswordValidationMixin):
     """Schema for user update requests.
 
     Similar to UserBase but all fields are optional to allow partial
@@ -135,8 +73,6 @@ class UserUpdate(BaseModel):
     )
     password: str | None = Field(
         default=None,
-        min_length=8,
-        max_length=64,
         description="New password in plain text"
     )
 
