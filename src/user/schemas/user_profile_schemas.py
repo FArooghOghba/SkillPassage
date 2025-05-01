@@ -38,7 +38,6 @@ class UserProfileBase(BaseModel, PhoneNumberMixin):
     phone_number: str | None = Field(
         default=None,
         max_length=20,
-        pattern=r"^\+?[1-9]\d{1,14}$",
         description="Phone number in E.164 format: +[country code][number]"
     )
     role: str = Field(

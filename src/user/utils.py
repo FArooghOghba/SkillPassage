@@ -15,7 +15,7 @@ REQUIRED_DIGIT = True
 REQUIRED_SPECIAL = True
 
 # Define allowed special characters clearly if using regex check
-SPECIAL_CHARS_REGEX = r"[@$!%*?&_^)(#\-]"
+SPECIAL_CHARS_REGEX = r"[@$!%*+?&_^)(#\-]"
 
 # Length check
 MIN_PASSWORD_LENGTH = 8
@@ -47,8 +47,8 @@ class PhoneNumberMixin:
             str | None: The normalized phone number or None if input is None.
 
         Raises:
-            ValueError: If the phone number contains non-digit characters
-                (excluding the '+' prefix).
+            ValueError: If the phone number format is invalid, with a specific
+                message describing the error.
 
         Examples:
             >>> PhoneNumberMixin.validate_phone_number("123456789")
@@ -64,12 +64,38 @@ class PhoneNumberMixin:
         # Remove any spaces or hyphens
         v = v.replace(" ", "").replace("-", "")
 
+        # Check for non-digit characters (except the "+" prefix)
+        stripped = v.replace("+", "") if v.startswith("+") else v
+        if not stripped.isdigit():
+            invalid_chars = [char for char in stripped if not char.isdigit()]
+            raise ValueError(
+                f"Invalid phone number format: contains non-digit characters "
+                f"({', '.join(set(invalid_chars))}). "
+                f"Phone number must follow E.164 format: "
+                f"+[country code][number]"
+            )
+
         # Add + prefix if missing
         if not v.startswith("+"):
             v = "+" + v
 
-        if not v.replace("+", "").isdigit():
-            raise ValueError("Phone number must contain only digits")
+        # Check minimum/maximum length requirements
+
+        # +[country code (1-3 digits)][number (at least 2 digits)]
+        if len(v) < 6:
+            raise ValueError(
+                "Invalid phone number: too short. "
+                "Phone number must follow E.164 format: "
+                "+[country code][number]"
+            )
+
+        # +[country code (1-3 digits)][number (up to 12 digits)]
+        if len(v) > 16:
+            raise ValueError(
+                "Invalid phone number: too long. "
+                "Phone number must follow E.164 format: "
+                "+[country code][number]"
+            )
 
         return v
 
