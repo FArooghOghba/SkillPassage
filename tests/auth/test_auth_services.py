@@ -9,16 +9,20 @@ from uuid import UUID
 import pytest
 from faker import Faker
 from jose import jwt
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.auth.exceptions import (
     NotAuthorizedError,
     TokenError,
 )
-from src.auth.services import (
-    create_access_token,
+from src.auth.services.authentication_services import authenticate_user
+from src.auth.services.password_services import (
     get_password_hash,
-    verify_access_token,
     verify_password,
+)
+from src.auth.services.token_services import (
+    create_access_token,
+    verify_access_token,
 )
 from src.core.config import auth_settings
 
@@ -105,13 +109,11 @@ class TestTokenOperations:
         - Correct error type is raised
         - Error message indicates expiration
         """
+        # Negative delta = already expired
         expired_token = create_access_token(
             user_id=first_test_user_id,
-            expires_delta=timedelta(microseconds=1)
+            expires_delta=timedelta(seconds=-1)
         )
-        # Wait for token to expire
-        import asyncio
-        await asyncio.sleep(1)
 
         with pytest.raises(NotAuthorizedError) as exc_info:
             await verify_access_token(expired_token)
@@ -150,3 +152,109 @@ class TestTokenOperations:
         with pytest.raises(TokenError) as exc_info:
             await verify_access_token(token)
         assert "Invalid token format" in str(exc_info.value.detail)
+
+
+@pytest.mark.asyncio
+class TestAuthenticationService:
+    """Test suite for authentication service.
+
+    This class contains tests that verify the behavior of the authentication
+    service function under various scenarios including successful
+    authentication with valid credentials.
+    """
+
+    async def test_service_authentication_user_return_success(
+            self, db_session: AsyncSession,
+            first_test_user_login_payload: dict[str, str]
+    ) -> None:
+        """
+        Test successful user authentication.
+
+        Verifies that a user can be successfully authenticated with valid
+        credentials.
+
+        Args:
+            db_session: Async SQLAlchemy session for database operations.
+            first_test_user_login_payload: Test user login data dictionary
+        """
+        user_email = first_test_user_login_payload["email"]
+        user_password = first_test_user_login_payload["password"]
+
+        user = await authenticate_user(
+            db=db_session,
+            email=user_email,
+            password=user_password,
+        )
+        assert user is not None
+        assert user.email == user_email
+
+    @pytest.mark.parametrize(
+        "invalid_password,expected_error",
+        [
+            # Empty password
+            ("", "Invalid credentials"),
+            # Password is too short
+            ("short", "Invalid credentials"),
+            # Password contains a space
+            (" ", "Invalid credentials"),
+            # Password contains a common password
+            ("password123", "Invalid credentials"),
+            # Wrong password
+            ("completely_wrong_password", "Invalid credentials"),
+            # Password is None
+            (None, "Invalid credentials"),
+        ],
+        ids=["empty", "short", "space", "common", "wrong", "none"]
+    )
+    async def test_service_authentication_user_with_invalid_pass_return_error(
+            self, db_session: AsyncSession,
+            first_test_user_login_payload: dict[str, str],
+            invalid_password: str, expected_error: str
+    ) -> None:
+        """Test authentication fails with invalid password.
+
+        Verifies that authentication fails with different types of invalid
+        passwords, such as empty password, short password, password with a
+        space, common password, and wrong password.
+
+        Args:
+            db_session: Async SQLAlchemy session for database operations.
+            first_test_user_login_payload: Test user login data dictionary
+            invalid_password: Password to test
+            expected_error: Expected error message
+        """
+        user_email = first_test_user_login_payload["email"]
+        user_password = invalid_password
+
+        with pytest.raises(NotAuthorizedError) as exc_info:
+            await authenticate_user(
+                db=db_session,
+                email=user_email,
+                password=user_password,
+            )
+
+        assert str(exc_info.value.detail) == expected_error
+
+    async def test_service_authentication_nonexistent_user_return_error(
+            self, db_session: AsyncSession,
+    ) -> None:
+        """Test authentication fails with non-existent email.
+
+        Verifies:
+        - Authentication with email that doesn't exist in the database
+          raises appropriate error
+        - Error message is generic to prevent user enumeration
+        """
+        non_existent_email = "nonexistent_user@example.com"
+        user_password = "any_password"
+
+        with pytest.raises(NotAuthorizedError) as exc_info:
+            await authenticate_user(
+                db=db_session,
+                email=non_existent_email,
+                password=user_password,
+            )
+
+        assert str(exc_info.value.detail) == (
+            "Invalid credentials"
+        )
