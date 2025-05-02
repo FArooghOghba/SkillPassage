@@ -86,6 +86,20 @@ def second_test_user_client_payload() -> Dict[str, str]:
 
 
 @pytest.fixture
+async def first_test_user_login_payload() -> Dict[str, str]:
+    """Fixture for login a test user instance.
+
+    This fixture uses the `UserFactory` factory
+    to log in a test user instance. The created user
+    can be used in tests to simulate a user with predefined
+    attributes for testing various scenarios.
+
+    :return: a dict test user payload
+    """
+    return await UserFactory.login_payload()
+
+
+@pytest.fixture
 async def first_test_client_profile(
         db_session: AsyncSession,
         first_test_client_user: User

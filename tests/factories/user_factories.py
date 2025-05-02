@@ -12,7 +12,7 @@ from factory import (
 )
 from faker import Faker
 
-from src.auth.services import get_password_hash
+from src.auth.services.password_services import get_password_hash
 from src.user.constants import UserRole
 from src.user.models import (
     User,
@@ -39,7 +39,7 @@ class UserFactory(AsyncSQLAlchemyFactory):  # type: ignore[misc]
     # Basic user information
     email: Any = LazyAttribute(lambda _: fake.email())
     username: Any = LazyAttribute(lambda _: fake.user_name())
-    hashed_password = LazyFunction(lambda: get_password_hash("test_password"))
+    hashed_password = LazyFunction(lambda: get_password_hash("Test_passw0rd"))
 
     @classmethod
     def create_payload(cls) -> Dict[str, str]:
@@ -66,6 +66,23 @@ class UserFactory(AsyncSQLAlchemyFactory):  # type: ignore[misc]
                 upper_case=True,
                 lower_case=True
             )
+        }
+
+    @classmethod
+    async def login_payload(cls) -> Dict[str, str]:
+        """Generate a payload dictionary for user login.
+
+        This provides credentials that will work with users
+        created by UserFactory, since it uses the same 'test_password'
+        that is hashed in the factory's hashed_password field.
+
+        Returns:
+            A dictionary with email and password for test login attempts
+        """
+        test_user = await cls.create()
+        return {
+            'email': str(test_user.email),
+            'password': 'Test_passw0rd',
         }
 
 

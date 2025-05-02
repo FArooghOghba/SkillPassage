@@ -13,7 +13,7 @@ from uuid import (
 
 import pytest
 
-from src.auth.services import create_access_token
+from src.auth.services.token_services import create_access_token
 
 
 @pytest.fixture
