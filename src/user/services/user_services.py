@@ -14,7 +14,7 @@ from sqlalchemy.exc import (
 )
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.auth.services import get_password_hash
+from src.auth.services.password_services import get_password_hash
 from src.user.exceptions import (
     UserAlreadyExistsError,
     UserNotFoundError,
