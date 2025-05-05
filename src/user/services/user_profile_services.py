@@ -108,7 +108,6 @@ async def create_user_profile(
             first_name=schema.first_name,
             last_name=schema.last_name,
             phone_number=schema.phone_number,
-            role=schema.role
         )
 
         db.add(profile)

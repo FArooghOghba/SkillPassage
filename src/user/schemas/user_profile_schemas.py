@@ -8,7 +8,6 @@ from pydantic import (
     Field,
 )
 
-from src.user.constants import UserRole
 from src.user.utils import PhoneNumberMixin
 
 
@@ -22,7 +21,6 @@ class UserProfileBase(BaseModel, PhoneNumberMixin):
         first_name: User's first name (2-50 characters).
         last_name: User's last name (2-50 characters).
         phone_number: Optional phone number in E.164 format.
-        role: User's role in the system (default: CLIENT).
     """
 
     first_name: str = Field(
@@ -39,10 +37,6 @@ class UserProfileBase(BaseModel, PhoneNumberMixin):
         default=None,
         max_length=20,
         description="Phone number in E.164 format: +[country code][number]"
-    )
-    role: str = Field(
-        default=UserRole.CLIENT.value,
-        description="User's role in the system"
     )
 
 
@@ -83,10 +77,6 @@ class UserProfileUpdate(BaseModel):
         pattern=r"^\+?[1-9]\d{1,14}$",
         description="Phone number in E.164 format: +[country code][number]"
     )
-    role: UserRole | None = Field(
-        default=None,
-        description="User's role in the system"
-    )
 
 
 class UserProfile(UserProfileBase):
@@ -98,9 +88,13 @@ class UserProfile(UserProfileBase):
     Attributes:
         id: Unique identifier for the profile.
         user_id: ID of the associated user.
+        role: User's role in the system.
     """
 
     id: UUID
     user_id: UUID
+    role: str = Field(
+        description="User's role in the system"
+    )
 
     model_config = ConfigDict(from_attributes=True)
