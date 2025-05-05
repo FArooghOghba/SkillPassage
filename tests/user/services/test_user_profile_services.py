@@ -158,7 +158,6 @@ class TestUpdateUserProfile:
             first_name=fake.first_name(),
             last_name=fake.last_name(),
             phone_number=f"+1{fake.numerify(text='##########')}",
-            role=UserRole.ADMIN.value
         )
 
         updated_profile = await update_user_profile(
@@ -170,7 +169,6 @@ class TestUpdateUserProfile:
         assert updated_profile.first_name == update_data.first_name
         assert updated_profile.last_name == update_data.last_name
         assert updated_profile.phone_number == update_data.phone_number
-        assert updated_profile.role == update_data.role
 
     async def test_service_update_user_profile_partial_return_success(
         self,
