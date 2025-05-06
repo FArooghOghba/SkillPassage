@@ -1,5 +1,4 @@
-"""
-Database session management.
+"""Database session management.
 
 This module provides utilities for managing database sessions and connections,
 including async session creation and dependency injection.
@@ -37,8 +36,7 @@ AsyncSessionLocal = async_sessionmaker(
 
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
-    """
-    Dependency for getting async database sessions.
+    """Dependency for getting async database sessions.
 
     Yields:
         AsyncSession: SQLAlchemy async session
@@ -57,4 +55,4 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
 
 
 # Type annotation for dependency injection
-DbSession = Annotated[AsyncSession, Depends(get_db)]
+DBAsyncSession = Annotated[AsyncSession, Depends(get_db)]
