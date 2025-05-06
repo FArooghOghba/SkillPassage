@@ -157,3 +157,32 @@ def first_test_user_profile_payload() -> Dict[str, str]:
     :return: a dict test user profile payload
     """
     return UserProfileFactory.create_payload()
+
+
+@pytest.fixture
+def first_test_register_payload(
+        first_test_user_client_payload: Dict[str, str],
+        first_test_user_profile_payload: Dict[str, str]
+) -> Dict[str, str]:
+    """Fixture for creating a combined test user registration payload.
+
+    This fixture merges client and profile payload dictionaries into
+    a single registration payload dictionary. It is useful for tests
+    that require a complete set of user registration data, including
+    both user account and profile information.
+
+    Args:
+        first_test_user_client_payload: A dictionary containing test user
+                                        client data.
+        first_test_user_profile_payload: A dictionary containing test user
+                                         profile data.
+
+    Returns:
+        A dictionary representing a complete user registration payload,
+        combining both client and profile data.
+    """
+    user_registration_payload = {
+        **first_test_user_client_payload,
+        **first_test_user_profile_payload,
+    }
+    return user_registration_payload

@@ -56,16 +56,18 @@ class UserFactory(AsyncSQLAlchemyFactory):  # type: ignore[misc]
             A payload dictionary with consistent values for creating users.
         """
         test_user = cls.build()
+        fake_password = fake.password(
+            length=12,
+            special_chars=True,
+            digits=True,
+            upper_case=True,
+            lower_case=True
+        )
         return {
             'email': str(test_user.email),
             'username': str(test_user.username),
-            'password': fake.password(
-                length=12,
-                special_chars=True,
-                digits=True,
-                upper_case=True,
-                lower_case=True
-            )
+            'password': fake_password,
+            'password_confirm': fake_password
         }
 
     @classmethod
