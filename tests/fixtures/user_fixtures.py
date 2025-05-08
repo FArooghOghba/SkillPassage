@@ -100,6 +100,20 @@ async def first_test_user_login_payload() -> Dict[str, str]:
 
 
 @pytest.fixture
+async def first_test_inactive_user_login_payload() -> Dict[str, str]:
+    """Fixture for creating a test user instance with inactive status.
+
+    This fixture uses the `UserFactory` factory
+    to create a test user instance with inactive status. The created user
+    can be used in tests to simulate a user with predefined
+    attributes for testing various scenarios.
+
+    :return: a dict test user payload
+    """
+    return await UserFactory.inactive_login_payload()
+
+
+@pytest.fixture
 async def first_test_client_profile(
         db_session: AsyncSession,
         first_test_client_user: User

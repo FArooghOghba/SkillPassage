@@ -258,3 +258,27 @@ class TestAuthenticationService:
         assert str(exc_info.value.detail) == (
             "Invalid credentials"
         )
+
+    async def test_service_authentication_inactive_user_return_error(
+            self, db_session: AsyncSession,
+            first_test_inactive_user_login_payload: dict[str, str]
+    ) -> None:
+        """Test authentication fails with inactive user.
+
+        Verifies:
+        - Authentication with inactive user raises appropriate error
+        - Error message is generic to prevent user enumeration
+        """
+        user_email = first_test_inactive_user_login_payload["email"]
+        user_password = first_test_inactive_user_login_payload["password"]
+
+        with pytest.raises(NotAuthorizedError) as exc_info:
+            await authenticate_user(
+                db=db_session,
+                email=user_email,
+                password=user_password,
+            )
+
+        assert str(exc_info.value.detail) == (
+            "User account is inactive"
+        )

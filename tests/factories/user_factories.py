@@ -22,6 +22,8 @@ from src.user.models import (
 
 fake = Faker()
 
+TEST_PASSWORD = "Test_passw0rd"
+
 
 class UserFactory(AsyncSQLAlchemyFactory):  # type: ignore[misc]
     """Factory for creating User instances for testing.
@@ -39,7 +41,7 @@ class UserFactory(AsyncSQLAlchemyFactory):  # type: ignore[misc]
     # Basic user information
     email: Any = LazyAttribute(lambda _: fake.email())
     username: Any = LazyAttribute(lambda _: fake.user_name())
-    hashed_password = LazyFunction(lambda: get_password_hash("Test_passw0rd"))
+    hashed_password = LazyFunction(lambda: get_password_hash(TEST_PASSWORD))
 
     @classmethod
     def create_payload(cls) -> Dict[str, str]:
@@ -84,7 +86,27 @@ class UserFactory(AsyncSQLAlchemyFactory):  # type: ignore[misc]
         test_user = await cls.create()
         return {
             'email': str(test_user.email),
-            'password': 'Test_passw0rd',
+            'password': TEST_PASSWORD,
+        }
+
+    @classmethod
+    async def inactive_login_payload(cls) -> Dict[str, str]:
+        """Generate a payload dictionary for user login with inactive account.
+
+        This provides credentials that will work with users
+        created by UserFactory, since it uses the same 'test_password'
+        that is hashed in the factory's hashed_password field. The
+        user is however marked as inactive, so the login should fail.
+
+        Returns:
+            A dictionary with email and password for test login attempts
+        """
+        test_user = await cls.create()
+        test_user.is_active = False
+
+        return {
+            'email': str(test_user.email),
+            'password': TEST_PASSWORD,
         }
 
 
