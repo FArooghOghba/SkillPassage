@@ -37,6 +37,7 @@ factory-boy = ">=3.3.0,<3.4.0"
 faker = ">=37.1.0,<37.2.0"
 async-factory-boy = ">=1.0.1,<1.1.0"
 types-factory-boy = ">=0.4.1,<0.5.0"
+types-passlib = "^1.7.7.20250408"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
@@ -85,7 +86,7 @@ add-select = [
 
 [tool.pytest.ini_options]
 minversion = "7.0"
-addopts = "-v -p no:warnings"
+addopts = "-v -s -p no:warnings"
 testpaths = ["tests"]
 python_files = "test_*.py"
 python_classes = "Test*"
