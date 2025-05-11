@@ -27,7 +27,7 @@ engine = create_async_engine(
 
 # Create async session factory
 AsyncSessionLocal = async_sessionmaker(
-    engine,
+    bind=engine,
     class_=AsyncSession,
     expire_on_commit=False,  # Don't expire objects after commit
     autocommit=False,  # Transactions are not automatically committed
