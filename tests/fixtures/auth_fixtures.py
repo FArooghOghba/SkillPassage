@@ -5,7 +5,6 @@ This module provides pytest fixtures for authentication testing, including:
 - JWT tokens
 - Authentication credentials
 """
-from datetime import timedelta
 from uuid import (
     UUID,
     uuid4,
@@ -14,6 +13,7 @@ from uuid import (
 import pytest
 
 from src.auth.services.token_services import create_access_token
+from src.core.config import auth_settings
 
 
 @pytest.fixture
@@ -27,7 +27,7 @@ def first_test_user_id() -> UUID:
 
 
 @pytest.fixture
-def fixt_test_token(first_test_user_id: UUID) -> str:
+def first_test_token(first_test_user_id: UUID) -> str:
     """Fixture providing a valid test JWT token.
 
     Args:
@@ -38,6 +38,6 @@ def fixt_test_token(first_test_user_id: UUID) -> str:
     """
     token = create_access_token(
         user_id=first_test_user_id,
-        expires_delta=timedelta(minutes=30)
+        expires_delta=auth_settings.access_token_expire_delta
     )
     return token

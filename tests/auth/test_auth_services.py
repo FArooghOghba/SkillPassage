@@ -15,6 +15,7 @@ from src.auth.exceptions import (
     NotAuthorizedError,
     TokenError,
 )
+from src.auth.schemas import TokenPayload
 from src.auth.services.authentication_services import authenticate_user
 from src.auth.services.password_services import (
     get_password_hash,
@@ -87,17 +88,49 @@ class TestTokenOperations:
         assert "iat" in payload
 
     async def test_service_verify_valid_token_return_success(
-            self, fixt_test_token: str
+            self, first_test_user_id: UUID, first_test_token: str
     ) -> None:
-        """Test successful token verification.
+        """Test successful token verification with a valid token.
 
         Verifies:
-        - Valid token is accepted
-        - User ID is correctly extracted
+        - The function returns a TokenPayload instance.
+        - The 'sub' (subject/user ID) claim is correctly extracted, is a UUID,
+          and matches the original user ID used to create the token.
+        - The 'iat' (issued at) claim is present and is a datetime object.
+        - The 'iat' claim is earlier than the 'exp' claim.
+        - The 'exp' (expiration time) claim is present and is a datetime
+        object.
         """
-        result = await verify_access_token(fixt_test_token)
-        assert "id" in result
-        assert UUID(result["id"])
+        token_payload = await verify_access_token(first_test_token)
+
+        assert isinstance(token_payload, TokenPayload), \
+            "verify_access_token should return a TokenPayload instance."
+
+        # Verify 'sub' claim
+        assert hasattr(token_payload, "sub"), \
+            "TokenPayload instance should have 'sub' attribute."
+        assert isinstance(token_payload.sub, UUID), \
+            "The 'sub' attribute should be a UUID instance."
+        assert token_payload.sub == first_test_user_id, \
+            (f"Decoded user ID (sub) {token_payload.sub} "
+             f"does not match expected {first_test_user_id}.")
+
+        # Verify 'iat' claim
+        assert hasattr(token_payload, "iat"), \
+            "TokenPayload instance should have 'iat' attribute."
+        assert isinstance(token_payload.iat, datetime), \
+            "The 'iat' attribute should be a datetime instance."
+
+        # Verify 'exp' claim
+        assert hasattr(token_payload, "exp"), \
+            "TokenPayload instance should have 'exp' attribute."
+        assert isinstance(token_payload.exp, datetime), \
+            "The 'exp' attribute should be a datetime instance."
+
+        # Verify relationship between 'iat' and 'exp'
+        assert token_payload.iat < token_payload.exp, \
+            ("Token 'issued at' (iat) time should be before "
+             "'expiration' (exp) time.")
 
     async def test_service_verify_expired_token_return_error(
             self, first_test_user_id: UUID
