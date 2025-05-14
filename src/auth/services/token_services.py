@@ -9,11 +9,8 @@ from datetime import (
     timedelta,
     timezone,
 )
-from typing import Annotated
 from uuid import UUID
 
-from fastapi import Depends
-from fastapi.security import OAuth2PasswordBearer
 from jose import jwt
 from jose.exceptions import (
     ExpiredSignatureError,
@@ -25,13 +22,11 @@ from src.auth.exceptions import (
     NotAuthorizedError,
     TokenError,
 )
+from src.auth.schemas import TokenPayload
 from src.core.config import auth_settings
 
 
 logger = logging.getLogger(__name__)
-
-# OAuth2 scheme for token extraction from requests
-oauth2_bearer = OAuth2PasswordBearer(tokenUrl='auth/token')
 
 
 def create_access_token(
@@ -81,9 +76,7 @@ def create_access_token(
     return encoded_jwt
 
 
-async def verify_access_token(
-    token: Annotated[str, Depends(oauth2_bearer)]
-) -> dict[str, str]:
+async def verify_access_token(token: str) -> TokenPayload:
     """Verify and decode a JWT access token.
 
     Args:
@@ -110,13 +103,27 @@ async def verify_access_token(
             algorithms=[auth_settings.JWT_ALGORITHM]
         )
 
-        user_id: str | None = payload.get('sub')
+        user_id = payload.get('sub')
+        token_issued_at_in_sec = payload.get('iat')
+        token_expiration_in_sec = payload.get('exp')
+
+        token_issued_at = datetime.fromtimestamp(
+            token_issued_at_in_sec, tz=timezone.utc
+        ) if token_issued_at_in_sec else None
+
+        token_expiration = datetime.fromtimestamp(
+            token_expiration_in_sec, tz=timezone.utc
+        ) if token_expiration_in_sec else None
 
         if not user_id:
             logger.warning("Token missing required 'sub' claim")
             raise TokenError('Invalid token format')
 
-        return {'id': user_id}
+        return TokenPayload(
+            sub=UUID(user_id),
+            iat=token_issued_at,
+            exp=token_expiration
+        )
 
     except ExpiredSignatureError:
         logger.warning("Token has expired")
