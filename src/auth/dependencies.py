@@ -84,4 +84,41 @@ async def get_current_user(
     return user
 
 
+async def get_current_active_user(
+        current_user: Annotated[User, Depends(get_current_user)]
+) -> User:
+    """Retrieve the current active user from the authentication system.
+
+    This function acts as a FastAPI dependency that ensures the current
+    user obtained from the authentication system is active. If the user
+    is inactive, it logs a warning and raises an HTTPException with a 403
+    Forbidden status code.
+
+    Args:
+        current_user: An instance of the User model annotated with
+                      FastAPI's dependency injection system that represents
+                      the currently authenticated user.
+
+    Returns:
+        User: The currently authenticated user if they are active.
+
+    Raises:
+        HTTPException: If the user is inactive, with a 403 Forbidden status
+                       code and a detail message indicating the user account
+                       is inactive.
+    """
+    if not current_user.is_active:
+        logger.warning(
+            f"User {current_user.id} ({current_user.email}) "
+            f"attempted action while inactive."
+        )
+
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User account is inactive.",
+        )
+    return current_user
+
+
 CurrentUser = Annotated[User, Depends(get_current_user)]
+CurrentActiveUser = Annotated[User, Depends(get_current_active_user)]
