@@ -16,7 +16,10 @@ from fastapi import (
 )
 from pytest import MonkeyPatch
 
-from src.auth.dependencies import get_current_user
+from src.auth.dependencies import (
+    get_current_active_user,
+    get_current_user,
+)
 from src.auth.exceptions import (
     NotAuthorizedError,
     TokenError,
@@ -353,3 +356,53 @@ class TestGetCurrentUser:
         mock_get_user.assert_awaited_once_with(
             db=MockDBAsyncSession, user_id=first_test_user_id
         )
+
+
+@pytest.mark.asyncio
+class TestGetCurrentActiveUser:
+    async def test_dep_get_current_active_user(
+            self, first_test_client_user: User,
+    ) -> None:
+        """
+        Test get_current_active_user with an active user.
+
+        This test verifies that the get_current_active_user function
+        correctly returns the current user when the user is active.
+
+        It checks that the returned user is the same as the provided
+        current user and that the user's is_active attribute is True.
+
+        :param first_test_client_user: A fixture representing an active user.
+        :return: None
+        """
+        user = await get_current_active_user(
+            current_user=first_test_client_user
+        )
+
+        assert user is first_test_client_user
+        assert user.is_active is True
+
+    async def test_dep_get_current_active_user_for_inactive_user_return_error(
+        self, first_test_client_user: User,
+    ) -> None:
+        """Test get_current_active_user with an inactive user.
+
+        This test verifies that the get_current_active_user function
+        correctly raises an HTTPException when the user is inactive.
+
+        It checks that the raised exception has the correct
+        status code and detail message.
+
+        :param first_test_client_user: A fixture representing an active user,
+            which is set to be inactive for the purpose of this test.
+        :return: None
+        """
+        first_test_client_user.is_active = False
+
+        with pytest.raises(HTTPException) as exc_info:
+            await get_current_active_user(
+                current_user=first_test_client_user
+            )
+
+        assert exc_info.value.status_code == status.HTTP_403_FORBIDDEN
+        assert exc_info.value.detail == "User account is inactive."
