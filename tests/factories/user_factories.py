@@ -13,10 +13,9 @@ from factory import (
 from faker import Faker
 
 from src.auth.services.password_services import get_password_hash
-from src.user.constants import UserRole
 from src.user.models import (
+    BaseUserProfile,
     User,
-    UserProfile,
 )
 
 
@@ -110,7 +109,7 @@ class UserFactory(AsyncSQLAlchemyFactory):  # type: ignore[misc]
         }
 
 
-class UserProfileFactory(AsyncSQLAlchemyFactory):  # type: ignore[misc]
+class UserBaseProfileFactory(AsyncSQLAlchemyFactory):  # type: ignore[misc]
     """Factory for creating UserProfile instances for testing.
 
     This factory generates realistic test data for UserProfile models
@@ -121,7 +120,7 @@ class UserProfileFactory(AsyncSQLAlchemyFactory):  # type: ignore[misc]
     class Meta:
         """Factory configuration."""
 
-        model = UserProfile
+        model = BaseUserProfile
         sqlalchemy_session_persistence = "flush"
 
     # Link to user
@@ -133,7 +132,6 @@ class UserProfileFactory(AsyncSQLAlchemyFactory):  # type: ignore[misc]
     phone_number: Any = LazyAttribute(
         lambda _: f"+1{fake.numerify(text='##########')}"
     )
-    role: Any = LazyAttribute(lambda _: UserRole.CLIENT.value)
 
     @classmethod
     def create_payload(cls) -> Dict[str, str]:

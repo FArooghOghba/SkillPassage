@@ -8,12 +8,12 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.user.models import (
+    BaseUserProfile,
     User,
-    UserProfile,
 )
 from tests.factories.user_factories import (
+    UserBaseProfileFactory,
     UserFactory,
-    UserProfileFactory,
 )
 
 
@@ -117,7 +117,7 @@ async def first_test_inactive_user_login_payload() -> Dict[str, str]:
 async def first_test_client_profile(
         db_session: AsyncSession,
         first_test_client_user: User
-) -> AsyncGenerator[UserProfile, None]:
+) -> AsyncGenerator[BaseUserProfile, None]:
     """Create a test user profile in the database.
 
     This fixture creates a profile for the first test user with default
@@ -129,9 +129,9 @@ async def first_test_client_profile(
         this profile
 
     Yields:
-        UserProfile: A test user profile instance
+        BaseUserProfile: A test user profile instance
     """
-    profile = await UserProfileFactory(user=first_test_client_user)
+    profile = await UserBaseProfileFactory(user=first_test_client_user)
     yield profile
     # Cleanup is handled by db_session fixture's rollback
 
@@ -140,7 +140,7 @@ async def first_test_client_profile(
 async def second_test_client_profile(
         db_session: AsyncSession,
         second_test_client_user: User
-) -> AsyncGenerator[UserProfile, None]:
+) -> AsyncGenerator[BaseUserProfile, None]:
     """Create a test user profile in the database.
 
     This fixture creates a profile for the second test user with default
@@ -152,9 +152,9 @@ async def second_test_client_profile(
         this profile
 
     Yields:
-        UserProfile: A test user profile instance
+        BaseUserProfile: A test user profile instance
     """
-    profile = await UserProfileFactory(user=second_test_client_user)
+    profile = await UserBaseProfileFactory(user=second_test_client_user)
     yield profile
     # Cleanup is handled by db_session fixture's rollback
 
@@ -163,14 +163,14 @@ async def second_test_client_profile(
 def first_test_user_profile_payload() -> Dict[str, str]:
     """Fixture for creating a test user profile payload.
 
-    This fixture uses the `UserProfileFactory` factory
+    This fixture uses the `UserBaseProfileFactory` factory
     to create a test user profile payload. The created payload
     can be used in tests to simulate a user profile with predefined
     attributes for testing various scenarios.
 
     :return: a dict test user profile payload
     """
-    return UserProfileFactory.create_payload()
+    return UserBaseProfileFactory.create_payload()
 
 
 @pytest.fixture
