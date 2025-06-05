@@ -63,3 +63,18 @@ class UserInactiveError(UserError):
             status_code=status.HTTP_403_FORBIDDEN,
             detail=f"User account {user_id} is inactive"
         )
+
+
+class UserProfileAlreadyExistsError(UserError):
+    """Exception raised when attempting to create a duplicate user profile."""
+    def __init__(self, user_id: UUID):
+        """Initialize duplicate user profile error.
+
+        Args:
+            user_id: The UUID of the user for whom a profile already exists.
+        """
+        detail = f"A profile already exists for user ID: {user_id}"
+        super().__init__(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=detail
+        )
