@@ -4,7 +4,7 @@ import logging
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.user.models import User
-from src.user.schemas.user_profile_schemas import UserProfileCreate
+from src.user.schemas.user_base_profile_schemas import UserBaseProfileCreate
 from src.user.schemas.user_schemas import UserCreate
 from src.user.services.user_profile_services import create_user_profile
 from src.user.services.user_services import create_user
@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 async def register_user(
     db: AsyncSession,
     user_schema: UserCreate,
-    profile_schema: UserProfileCreate,
+    profile_schema: UserBaseProfileCreate,
 ) -> User:
     """Register a new user with complete profile.
 
@@ -61,6 +61,8 @@ async def register_user(
             user_id=user.id,
             schema=profile_schema
         )
+
+        await db.refresh(user, attribute_names=['profile'])
 
         # Here you can add additional registration steps
         # For example:

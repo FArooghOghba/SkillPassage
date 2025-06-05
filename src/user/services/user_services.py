@@ -13,23 +13,24 @@ from sqlalchemy.exc import (
     SQLAlchemyError,
 )
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from src.auth.services.password_services import get_password_hash
 from src.user.exceptions import (
     UserAlreadyExistsError,
     UserNotFoundError,
 )
-from src.user.models import User
+from src.user.models import User as UserModel
 from src.user.schemas.user_schemas import (
-    UserCreate,
-    UserUpdate,
+    UserCreate as UserCreateSchema,
+    UserUpdate as UserUpdateSchema,
 )
 
 
 logger = logging.getLogger(__name__)
 
 
-async def get_user_by_id(db: AsyncSession, user_id: UUID) -> User:
+async def get_user_by_id(db: AsyncSession, user_id: UUID) -> UserModel:
     """Retrieve a user by their ID.
 
     Args:
@@ -42,7 +43,7 @@ async def get_user_by_id(db: AsyncSession, user_id: UUID) -> User:
     Raises:
         UserNotFoundError: If no user exists with the given ID
     """
-    user: User | None = await db.get(entity=User, ident=user_id)
+    user: UserModel | None = await db.get(entity=UserModel, ident=user_id)
     if not user:
         logger.warning(msg=f"User not found with ID: {user_id}")
         raise UserNotFoundError(identifier=user_id)
@@ -51,7 +52,9 @@ async def get_user_by_id(db: AsyncSession, user_id: UUID) -> User:
     return user
 
 
-async def get_user_by_email(db: AsyncSession, user_email: str) -> User:
+async def get_user_by_email(
+        *, db: AsyncSession, user_email: str
+) -> UserModel:
     """Retrieve a user by their email address.
 
     Args:
@@ -65,11 +68,11 @@ async def get_user_by_email(db: AsyncSession, user_email: str) -> User:
         UserNotFoundError: If no user exists with the given email
     """
     # Construct a select statement to find the user by email
-    query = select(User).where(User.email == user_email)
+    query = select(UserModel).where(UserModel.email == user_email)
 
     # Execute the statement and get the scalar result (one user or None)
     result = await db.execute(query)
-    user: User | None = result.scalar_one_or_none()
+    user: UserModel | None = result.scalar_one_or_none()
 
     if not user:
         logger.warning(msg=f"User not found with Email: {user_email}")
@@ -79,7 +82,48 @@ async def get_user_by_email(db: AsyncSession, user_email: str) -> User:
     return user
 
 
-async def create_user(db: AsyncSession, schema: UserCreate) -> User:
+async def get_user_for_auth_with_profile(
+        db: AsyncSession, user_id: UUID
+) -> UserModel:
+    """Retrieve a user by ID with their base profile eagerly loaded.
+
+    Intended for authentication flows where the full user object is needed.
+    Returns None if user not found, allowing caller to raise specific auth
+    exceptions.
+    """
+    stmt = (
+        select(UserModel)
+        .options(
+            selectinload(UserModel.profile)  # Eagerly load BaseUserProfile
+            # If ProfessionalProfileExtension should also be loaded
+            # for /me endpoint eventually:
+            # .selectinload(
+            #     User.profile.of_type(BaseUserProfile).professional_extension
+            # )
+            # Or if using relationship name directly from BaseUserProfile:
+            # .selectinload(User.profile).selectinload(
+            #     BaseUserProfile.professional_extension
+            # )
+        )
+        .where(UserModel.id == user_id)
+    )
+    result = await db.execute(stmt)
+    user: UserModel | None = result.scalar_one_or_none()
+
+    if not user:
+        logger.warning(f"User {user_id} not found during auth flow fetch.")
+        raise UserNotFoundError(identifier=user_id)
+
+    logger.info(
+        msg=f"Successfully retrieved user {user_id} "
+            f"with profile for auth flow."
+    )
+    return user
+
+
+async def create_user(
+        *, db: AsyncSession, schema: UserCreateSchema
+) -> UserModel:
     """Create a new user in the database.
 
     Args:
@@ -98,7 +142,7 @@ async def create_user(db: AsyncSession, schema: UserCreate) -> User:
     hashed_password = get_password_hash(schema.password)
 
     # Create new user instance
-    user = User(
+    user = UserModel(
         email=schema.email,
         username=schema.username,
         hashed_password=hashed_password,
@@ -185,8 +229,8 @@ async def create_user(db: AsyncSession, schema: UserCreate) -> User:
 
 
 async def update_user(
-        db: AsyncSession, user_id: UUID, schema: UserUpdate
-) -> User:
+        *, db: AsyncSession, user_id: UUID, schema: UserUpdateSchema
+) -> UserModel:
     """Update an existing user's information.
 
     Args:

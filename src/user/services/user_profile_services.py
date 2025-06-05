@@ -7,14 +7,20 @@ import logging
 from uuid import UUID
 
 from sqlalchemy import select
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import (
+    IntegrityError,
+    SQLAlchemyError,
+)
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.user.exceptions import UserNotFoundError
-from src.user.models import UserProfile
-from src.user.schemas.user_profile_schemas import (
-    UserProfileCreate,
-    UserProfileUpdate,
+from src.user.exceptions import (
+    UserNotFoundError,
+    UserProfileAlreadyExistsError,
+)
+from src.user.models import BaseUserProfile
+from src.user.schemas.user_base_profile_schemas import (
+    UserBaseProfileCreate as UserBaseProfileCreateSchema,
+    UserBaseProfileUpdate as UserBaseProfileUpdateSchema,
 )
 from src.user.services.user_services import get_user_by_id
 
@@ -24,7 +30,7 @@ logger = logging.getLogger(__name__)
 
 async def get_user_profile_by_id(
         db: AsyncSession, profile_id: UUID
-) -> UserProfile:
+) -> BaseUserProfile:
     """Retrieve a profile by its ID.
 
     Args:
@@ -37,8 +43,8 @@ async def get_user_profile_by_id(
     Raises:
         UserNotFoundError: If no profile exists with the given ID
     """
-    profile: UserProfile | None = await db.get(
-        entity=UserProfile, ident=profile_id
+    profile: BaseUserProfile | None = await db.get(
+        entity=BaseUserProfile, ident=profile_id
     )
 
     if not profile:
@@ -51,7 +57,7 @@ async def get_user_profile_by_id(
 
 async def get_user_profile_by_user_id(
     db: AsyncSession, user_id: UUID
-) -> UserProfile:
+) -> BaseUserProfile:
     """Retrieve a user's profile by user ID.
 
     Args:
@@ -64,7 +70,7 @@ async def get_user_profile_by_user_id(
     Raises:
         UserNotFoundError: If no profile exists for the given user ID
     """
-    query = select(UserProfile).where(UserProfile.user_id == user_id)
+    query = select(BaseUserProfile).where(BaseUserProfile.user_id == user_id)
     result = await db.execute(query)
     profile = result.scalar_one_or_none()
 
@@ -82,8 +88,8 @@ async def get_user_profile_by_user_id(
 async def create_user_profile(
     db: AsyncSession,
     user_id: UUID,
-    schema: UserProfileCreate
-) -> UserProfile:
+    schema: UserBaseProfileCreateSchema
+) -> BaseUserProfile:
     """Create a new profile for a user.
 
     Args:
@@ -103,7 +109,7 @@ async def create_user_profile(
 
     try:
         # Create new profile instance
-        profile = UserProfile(
+        profile = BaseUserProfile(
             user_id=user_id,
             first_name=schema.first_name,
             last_name=schema.last_name,
@@ -123,6 +129,15 @@ async def create_user_profile(
         )
         return profile
 
+    except IntegrityError as e:
+        await db.rollback()
+        logger.warning(
+            msg=f"Attempted to create a duplicate profile for "
+                f"user ID: {user_id}",
+            extra={"user_id": str(user_id), "error": str(e)}
+        )
+        raise UserProfileAlreadyExistsError(user_id=user_id) from e
+
     except SQLAlchemyError as e:
         await db.rollback()
         logger.error(
@@ -138,8 +153,8 @@ async def create_user_profile(
 async def update_user_profile(
     db: AsyncSession,
     user_id: UUID,
-    schema: UserProfileUpdate
-) -> UserProfile:
+    schema: UserBaseProfileUpdateSchema
+) -> BaseUserProfile:
     """Update an existing user profile.
 
     Args:
