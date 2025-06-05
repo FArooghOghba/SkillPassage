@@ -4,6 +4,7 @@ This module defines the schema classes used for validating and serializing
 user data throughout the application. It includes schemas for various
 user-related operations such as user creation, updates, and API responses.
 """
+from typing import Optional
 from uuid import UUID
 
 from pydantic import (
@@ -13,6 +14,12 @@ from pydantic import (
     Field,
 )
 
+from src.user.schemas.user_base_profile_schemas import (
+    UserBaseProfile as UserBaseProfileSchema,
+)
+from src.user.schemas.user_professional_profile_schemas import (
+    UserProfessionalProfile as UserProfessionalProfileSchema,
+)
 from src.user.utils import PasswordValidationMixin
 
 
@@ -52,14 +59,14 @@ class UserCreate(UserBase, PasswordValidationMixin):
     )
 
 
-class UserUpdate(BaseModel, PasswordValidationMixin):
+class UserUpdate(BaseModel):
     """Schema for user update requests.
 
     Similar to UserBase but all fields are optional to allow partial
     updates.
 
     Attributes:
-        All fields are optional versions of UserBase fields, plus password.
+        All fields are optional versions of UserBase fields.
     """
 
     email: EmailStr | None = None
@@ -70,10 +77,6 @@ class UserUpdate(BaseModel, PasswordValidationMixin):
         pattern="^[a-zA-Z0-9_-]+$",
         description="Alphanumeric username with optional"
                     "underscores and hyphens"
-    )
-    password: str | None = Field(
-        default=None,
-        description="New password in plain text"
     )
 
 
@@ -91,6 +94,7 @@ class UserInDB(UserBase):
 
     id: UUID
     is_active: bool = True
+    is_superuser: bool = False
     hashed_password: str
 
     model_config = ConfigDict(from_attributes=True)
@@ -109,5 +113,9 @@ class User(UserBase):
 
     id: UUID
     is_active: bool = True
+    is_superuser: bool
+
+    profile: UserBaseProfileSchema
+    professional_profile: Optional[UserProfessionalProfileSchema] = None
 
     model_config = ConfigDict(from_attributes=True)

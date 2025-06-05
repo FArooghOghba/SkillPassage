@@ -10,11 +10,11 @@ from pydantic import (
     model_validator,
 )
 
-from src.user.schemas.user_profile_schemas import UserProfileCreate
+from src.user.schemas.user_base_profile_schemas import UserBaseProfileCreate
 from src.user.schemas.user_schemas import UserCreate
 
 
-class RegisterUserRequest(UserCreate, UserProfileCreate):
+class RegisterUserRequest(UserCreate, UserBaseProfileCreate):
     """Schema representing the request body for user registration.
 
     Combines user creation fields (email, username, password) and
