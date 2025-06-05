@@ -44,13 +44,25 @@ class TestRegisterUser:
         )
         assert response.status_code == status.HTTP_201_CREATED
 
-        response_data = response.json()
-        user_registered_email = first_test_register_payload["email"]
-        user_registered_username = first_test_register_payload["username"]
+        user_payload_email = first_test_register_payload["email"]
+        user_payload_username = first_test_register_payload["username"]
 
-        assert response_data['email'] == user_registered_email
-        assert response_data['username'] == user_registered_username
-        assert response_data['is_active'] is True
+        user_payload_first_name = first_test_register_payload["first_name"]
+        user_payload_last_name = first_test_register_payload["last_name"]
+        user_payload_phone = first_test_register_payload["phone_number"]
+
+        response_user_data = response.json()
+
+        assert response_user_data['email'] == user_payload_email
+        assert response_user_data['username'] == user_payload_username
+        assert response_user_data['is_active'] is True
+        assert response_user_data['is_superuser'] is False
+        assert response_user_data['professional_profile'] is None
+
+        response_profile_data = response_user_data['profile']
+        assert response_profile_data['first_name'] == user_payload_first_name
+        assert response_profile_data['last_name'] == user_payload_last_name
+        assert response_profile_data['phone_number'] == user_payload_phone
 
     async def test_api_user_registration_with_existent_email_return_error(
             self, client: AsyncClient,
