@@ -24,7 +24,7 @@ from src.auth.services.token_services import verify_access_token
 from src.db.session import DBAsyncSession
 from src.user.exceptions import UserNotFoundError
 from src.user.models import User
-from src.user.services.user_services import get_user_by_id
+from src.user.services.user_services import get_user_for_auth_with_profile
 
 
 logger = logging.getLogger(__name__)
@@ -73,7 +73,9 @@ async def get_current_user(
 
     try:
         # Retrieve the user from the database by ID
-        user = await get_user_by_id(db=db, user_id=user_id_from_token)
+        user = await get_user_for_auth_with_profile(
+            db=db, user_id=user_id_from_token
+        )
     except UserNotFoundError:
         logger.warning(
             f"User ID {user_id_from_token} from token not found in DB."
@@ -117,6 +119,21 @@ async def get_current_active_user(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="User account is inactive.",
         )
+    if not current_user.profile:
+        logger.error(
+            f"CRITICAL: Active user {current_user.id} ({current_user.email}) "
+            f"is missing a base profile. "
+            f"This indicates a data integrity issue."
+        )
+        # This indicates a serious issue,
+        # likely not an auth problem but a data one.
+        # A 500 might be more appropriate here,
+        # or a specific application error.
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="User profile data is missing."
+        )
+
     return current_user
 
 
