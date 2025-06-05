@@ -1,4 +1,5 @@
 """User-related database models."""
+from datetime import datetime
 from uuid import (
     UUID,
     uuid4,
@@ -7,7 +8,7 @@ from uuid import (
 from sqlalchemy import (
     Boolean,
     CheckConstraint,
-    Enum as SQLAlchemyEnum,
+    DateTime,
     ForeignKey,
     String,
 )
@@ -19,12 +20,15 @@ from sqlalchemy.orm import (
 )
 
 from src.db.base import BaseModel
-from src.user.constants import UserRole
 
 
 class User(BaseModel):
-    """User model for authentication and authorization."""
+    """SQLAlchemy model representing a user in the system.
 
+    Inherits from BaseModel to include created_at and updated_at timestamps.
+    Includes authentication fields, user status flags, and a one-to-one
+    relationship with BaseUserProfile.
+    """
     __tablename__ = "users"
 
     id: Mapped[UUID] = mapped_column(
@@ -49,17 +53,24 @@ class User(BaseModel):
         String(length=1024),
         nullable=False,
     )
+
     is_active: Mapped[bool] = mapped_column(
         Boolean,
         default=True,
         nullable=False
     )
+    is_superuser: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+        nullable=False
+    )
 
     # Relationship to profile
-    profile: Mapped["UserProfile"] = relationship(
-        argument="UserProfile",
+    profile: Mapped["BaseUserProfile"] = relationship(
+        argument="BaseUserProfile",
         back_populates="user",  # access user from profile via profile.user
-        uselist=False  # ensures one user has exactly one profile (one-to-one)
+        uselist=False,  # ensures a user has exactly one profile (one-to-one)
+        cascade="all, delete-orphan"
     )
 
     __table_args__ = (
@@ -77,10 +88,15 @@ class User(BaseModel):
         return f"<User {self.username} ({self.id})>"
 
 
-class UserProfile(BaseModel):
-    """Profile model for user personal information."""
+class BaseUserProfile(BaseModel):
+    """SQLAlchemy model representing a user's base profile information.
 
-    __tablename__ = "user_profiles"
+    Inherits from BaseModel to include created_at and updated_at timestamps.
+    Contains core profile fields and maintains a one-to-one relationship
+    with User. Can be extended with additional profile types like
+    ProfessionalProfileExtension.
+    """
+    __tablename__ = "user_profiles_base"
 
     id: Mapped[UUID] = mapped_column(
         PostgresUUID(as_uuid=True),
@@ -104,17 +120,21 @@ class UserProfile(BaseModel):
     phone_number: Mapped[str | None] = mapped_column(
         String,
     )
-    role: Mapped[UserRole] = mapped_column(
-        SQLAlchemyEnum(UserRole, name="user_role_enum", native_enum=True),
-        default=UserRole.CLIENT.value,
-        nullable=False,
-    )
 
     # Relationship to user
     user: Mapped[User] = relationship(
         argument="User",
         back_populates="profile"
     )
+
+    # Links to extension tables
+    professional_extension: Mapped["ProfessionalProfileExtension | None"] = \
+        relationship(
+            argument="ProfessionalProfileExtension",
+            back_populates="base_profile",
+            uselist=False,
+            cascade="all, delete-orphan"
+        )
 
     __table_args__ = (
         CheckConstraint(
@@ -137,3 +157,50 @@ class UserProfile(BaseModel):
             str: The user's full name in 'first_name last_name' format.
         """
         return f"{self.first_name} {self.last_name}"
+
+
+class ProfessionalProfileExtension(BaseModel):
+    """Pro profile extension model for users applying to become professionals.
+
+    Stores additional professional information, application status,
+    and approval workflow data for users seeking professional privileges
+    in the system.
+    """
+    __tablename__ = "user_profiles_professional_extensions"
+
+    base_profile_id: Mapped[UUID] = mapped_column(
+        PostgresUUID(as_uuid=True),
+        ForeignKey(column="user_profiles_base.id", ondelete="CASCADE"),
+        primary_key=True
+    )
+
+    specialization: Mapped[str | None] = mapped_column(
+        String(255), nullable=True
+    )
+    bio: Mapped[str | None] = mapped_column(String, nullable=True)
+    years_of_experience: Mapped[int | None] = mapped_column(nullable=True)
+
+    is_application_approved: Mapped[bool] = mapped_column(
+        Boolean, default=False, nullable=False
+    )
+    approved_by_admin_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("users.id"),
+        nullable=True
+    )  # Link to admin who approved
+    approved_by_admin: Mapped["User | None"] = relationship(
+        argument="User",
+        foreign_keys=[approved_by_admin_id]
+    )
+    approved_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True
+    )
+    rejection_reason: Mapped[str | None] = mapped_column(String, nullable=True)
+    is_active_as_professional: Mapped[bool] = mapped_column(
+        Boolean, default=False, nullable=False
+    )  # Can be deactivated later
+
+    base_profile: Mapped["BaseUserProfile"] = relationship(
+        argument="BaseUserProfile",
+        back_populates="professional_extension"
+    )
