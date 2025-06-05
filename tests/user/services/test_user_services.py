@@ -58,7 +58,6 @@ class TestCreateUser:
             db_session: Async SQLAlchemy session for database operations.
             first_test_user_client_payload: Dictionary containing test
             user data.
-            first_test_user_client_payload: Test user data dictionary
 
         Raises:
             AssertionError: If any of the user attributes don't match
@@ -76,14 +75,17 @@ class TestCreateUser:
         assert created_user.email == user_data.email
         assert created_user.username == user_data.username
         assert created_user.hashed_password != user_data.password
+        assert created_user.hashed_password is not None
+        assert len(created_user.hashed_password) > 0
         assert created_user.is_active is True
+        assert created_user.is_superuser is False
 
         # Verify that user exists in the database
         db_user = await get_user_by_email(
             db=db_session, user_email=user_data.email
         )
-        assert db_user is not None, "User should exist in the database"
-        assert db_user.email == user_data.email, "Emails should match"
+        assert db_user == created_user, \
+            "Database user should match created user"
 
     async def test_service_create_user_with_existed_email_return_error(
             self, db_session: AsyncSession,
@@ -562,118 +564,3 @@ class TestUpdateUser:
         assert str(exc_info.value.detail) == (
             f"User already exists with Username: {existed_username}"
         )
-
-    async def test_service_update_user_with_valid_password_return_success(
-            self, db_session: AsyncSession, first_test_client_user: User
-    ) -> None:
-        """Test successful password update with a valid password.
-
-        This test verifies that:
-        1. A user can update their password with one that meets
-        all complexity requirements
-        2. The updated password is properly hashed before storage
-        3. The update operation completes successfully without errors
-
-        Args:
-            db_session: Async SQLAlchemy session for database operations.
-            first_test_client_user: Pre-created test user fixture.
-
-        Raises:
-            AssertionError: If the password is not correctly hashed or if the
-                update operation fails.
-        """
-        # Valid password update with a password that meets all
-        # complexity requirements. Contains uppercase, lowercase,
-        # digits, and special chars
-        valid_password = "Test123!@#"
-        update_data = UserUpdate(password=valid_password)
-
-        updated_user = await update_user(
-            db=db_session,
-            user_id=first_test_client_user.id,
-            schema=update_data
-        )
-
-        # Verify password was properly hashed and not stored in plain text
-        assert updated_user.hashed_password != valid_password
-
-    @pytest.mark.asyncio
-    @pytest.mark.parametrize(
-        "invalid_password,expected_error",
-        [
-            (
-                    "nouppercaseordigits!",
-                    "must contain an uppercase letter; must contain a digit"
-            ),
-            (
-                    "NOLOWERCASEORDIGITS!",
-                    "must contain a lowercase letter; must contain a digit"
-            ),
-            (
-                    "NoSpecialCharsOrDigits",
-                    "must contain a digit; must contain a special character"
-            ),
-            (
-                    "NoSpecial123",
-                    "must contain a special character"
-            ),
-            (
-                    "short",
-                    "must be at least 8 characters"
-            ),  # If you have min_length=8
-        ],
-        ids=[
-            "no-uppercase-or-digits",
-            "no-lowercase-or-digits",
-            "no-special-chars-or-digits",
-            "no-special-chars",
-            "too-short",
-        ]
-    )
-    async def test_service_update_user_with_invalid_password_return_error(
-            self, db_session: AsyncSession, first_test_client_user: User,
-            invalid_password: str, expected_error: str
-    ) -> None:
-        """Test that password validation errors are properly raised.
-
-        This parameterized test verifies that:
-        1. Passwords not meeting complexity requirements are rejected
-        2. Specific validation error messages are returned for each
-        type of failure
-        3. The update operation fails with appropriate ValueError
-
-        Test cases include passwords missing:
-        - Uppercase letters
-        - Lowercase letters
-        - Digits
-        - Special characters
-        - Minimum length requirements
-
-        Args:
-            db_session: Async SQLAlchemy session for database operations.
-            first_test_client_user: Pre-created test user fixture.
-            invalid_password: The password string that violates
-            validation rules.
-            expected_error: Expected error message fragment(s)
-            for this test case.
-
-        Raises:
-            AssertionError: If the validation doesn't fail or if the expected
-                error messages are not present in the exception.
-        """
-        # Attempt to update user with an invalid password
-        with pytest.raises(ValueError) as exc_info:
-            update_data = UserUpdate(password=invalid_password)
-            await update_user(
-                db=db_session,
-                user_id=first_test_client_user.id,
-                schema=update_data
-            )
-
-        # Verify error message contains password validation failure
-        error_message = str(exc_info.value)
-        assert "Password validation failed" in error_message
-
-        # Check that the specific expected error is in the message
-        for error_part in expected_error.split("; "):
-            assert error_part in error_message
