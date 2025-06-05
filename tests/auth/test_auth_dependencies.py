@@ -7,7 +7,10 @@ from datetime import (
     timezone,
 )
 from unittest.mock import AsyncMock
-from uuid import UUID
+from uuid import (
+    UUID,
+    uuid4,
+)
 
 import pytest
 from fastapi import (
@@ -27,7 +30,10 @@ from src.auth.exceptions import (
 from src.auth.schemas import TokenPayload
 from src.core.config import auth_settings
 from src.user.exceptions import UserNotFoundError
-from src.user.models import User
+from src.user.models import (
+    BaseUserProfile,
+    User,
+)
 
 
 # Mocking the DBAsyncSession - for unit tests,
@@ -44,6 +50,7 @@ class TestGetCurrentUser:
             monkeypatch: MonkeyPatch,
             first_test_token: str,
             first_test_client_user: User,
+            first_test_client_profile: BaseUserProfile
     ) -> None:
         """
         Test get_current_user with a valid token and existing user.
@@ -85,7 +92,7 @@ class TestGetCurrentUser:
         # This mock will return the first_test_client_user when called.
         mock_get_user = AsyncMock(return_value=first_test_client_user)
         monkeypatch.setattr(
-            target="src.auth.dependencies.get_user_by_id",
+            target="src.auth.dependencies.get_user_for_auth_with_profile",
             name=mock_get_user
         )
 
@@ -101,6 +108,7 @@ class TestGetCurrentUser:
         assert user is not None
         assert user.id == first_test_client_user.id
         assert user.email == first_test_client_user.email
+        assert user.profile is first_test_client_profile
 
         # Ensure that verify_access_token was called exactly once
         # with the test token.
@@ -297,8 +305,8 @@ class TestGetCurrentUser:
 
         It verifies that the HTTPException is raised with the expected status
         code and detail message. It also checks that the verify_access_token
-        and get_user_by_id functions are called exactly once with the correct
-        arguments.
+        and get_user_for_auth_with_profile functions are called exactly once
+        with the correct arguments.
 
         The test works as follows:
 
@@ -306,12 +314,14 @@ class TestGetCurrentUser:
            but for which the user is not found in the database.
         2. The verify_access_token function is replaced with a mock that
            returns a valid token payload when called with the above token.
-        3. The get_user_by_id function is replaced with a mock that raises a
-           UserNotFoundError when called with the user ID from the token.
+        3. The get_user_for_auth_with_profile function is replaced with a
+            mock that raises a UserNotFoundError when called with the user
+            ID from the token.
         4. The test asserts that an HTTPException is raised with the expected
            status code and detail message.
-        5. The test asserts that the verify_access_token and get_user_by_id
-           functions were called exactly once with the correct arguments.
+        5. The test asserts that the verify_access_token and
+            get_user_for_auth_with_profile functions were called exactly once
+            with the correct arguments.
         """
         # A valid token fixture is used to simulate a token that is valid
         # but for which the user is not found in the database.
@@ -330,13 +340,14 @@ class TestGetCurrentUser:
             name=mock_verify
         )
 
-        # The get_user_by_id function is replaced with a mock that raises a
-        # UserNotFoundError when called with the user ID from the token.
+        # The get_user_for_auth_with_profile function is replaced with
+        # a mock that raises a UserNotFoundError when called with the
+        # user ID from the token.
         mock_get_user = AsyncMock(
             side_effect=UserNotFoundError(identifier=first_test_user_id)
         )
         monkeypatch.setattr(
-            target="src.auth.dependencies.get_user_by_id",
+            target="src.auth.dependencies.get_user_for_auth_with_profile",
             name=mock_get_user
         )
 
@@ -361,7 +372,9 @@ class TestGetCurrentUser:
 @pytest.mark.asyncio
 class TestGetCurrentActiveUser:
     async def test_dep_get_current_active_user(
-            self, first_test_client_user: User,
+            self,
+            first_test_client_user: User,
+            first_test_client_profile: BaseUserProfile
     ) -> None:
         """
         Test get_current_active_user with an active user.
@@ -380,6 +393,7 @@ class TestGetCurrentActiveUser:
         )
 
         assert user is first_test_client_user
+        assert user.profile is first_test_client_profile
         assert user.is_active is True
 
     async def test_dep_get_current_active_user_for_inactive_user_return_error(
@@ -406,3 +420,41 @@ class TestGetCurrentActiveUser:
 
         assert exc_info.value.status_code == status.HTTP_403_FORBIDDEN
         assert exc_info.value.detail == "User account is inactive."
+
+    async def test_dep_get_current_active_non_profile_user_return_error(
+        self
+    ) -> None:
+        """Test get_current_active_user with an active user missing profile.
+
+        This test verifies that the get_current_active_user function correctly
+        raises an HTTPException with a 500 Internal Server Error status when
+        an active user is missing their profile data, indicating a data
+        integrity issue.
+
+        :return: None
+        """
+        # Create a mock User object
+        mock_user_with_no_profile = AsyncMock(spec=User)
+        mock_user_with_no_profile.is_active = True
+
+        # Configure the 'profile' attribute to be None when accessed
+        # This simulates the state after get_current_user tried to load
+        # the profile and found nothing for a simple attribute:
+        mock_user_with_no_profile.profile = None
+        # If .profile were a property that might do something:
+        # type(mock_user_with_no_profile).profile = PropertyMock(
+        #     return_value=None
+        # )
+
+        # Add other attributes needed for logging inside the dependency
+        mock_user_with_no_profile.id = uuid4()
+        mock_user_with_no_profile.email = "no_profile@example.com"
+
+        with pytest.raises(HTTPException) as exc_info:
+            await get_current_active_user(
+                current_user=mock_user_with_no_profile
+            )
+
+        assert (exc_info.value.status_code ==
+                status.HTTP_500_INTERNAL_SERVER_ERROR)
+        assert exc_info.value.detail == "User profile data is missing."
