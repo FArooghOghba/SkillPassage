@@ -11,8 +11,8 @@ from pydantic import (
 from src.user.utils import PhoneNumberMixin
 
 
-class UserProfileBase(BaseModel, PhoneNumberMixin):
-    """Base schema for user profile data validation.
+class UserBaseProfileBase(BaseModel, PhoneNumberMixin):
+    """Base schema for user base profile data validation.
 
     This schema defines the common fields and validation rules shared across
     different profile-related operations.
@@ -40,8 +40,8 @@ class UserProfileBase(BaseModel, PhoneNumberMixin):
     )
 
 
-class UserProfileCreate(UserProfileBase):
-    """Schema for profile creation requests.
+class UserBaseProfileCreate(UserBaseProfileBase):
+    """Schema for base profile creation requests.
 
     Inherits all fields from UserProfileBase. Used when creating
     a new profile for a user.
@@ -49,8 +49,8 @@ class UserProfileCreate(UserProfileBase):
     pass
 
 
-class UserProfileUpdate(BaseModel):
-    """Schema for profile update requests.
+class UserBaseProfileUpdate(BaseModel, PhoneNumberMixin):
+    """Schema for base profile update requests.
 
     Similar to UserProfileBase but all fields are optional to allow
     partial updates.
@@ -74,13 +74,12 @@ class UserProfileUpdate(BaseModel):
     phone_number: str | None = Field(
         default=None,
         max_length=20,
-        pattern=r"^\+?[1-9]\d{1,14}$",
         description="Phone number in E.164 format: +[country code][number]"
     )
 
 
-class UserProfile(UserProfileBase):
-    """Schema for profile data in API responses.
+class UserBaseProfile(UserBaseProfileBase):
+    """Schema for base profile data in API responses.
 
     Extends UserProfileBase to include database-specific fields.
     Used for API responses when returning profile data to clients.
@@ -88,13 +87,9 @@ class UserProfile(UserProfileBase):
     Attributes:
         id: Unique identifier for the profile.
         user_id: ID of the associated user.
-        role: User's role in the system.
     """
 
     id: UUID
     user_id: UUID
-    role: str = Field(
-        description="User's role in the system"
-    )
 
     model_config = ConfigDict(from_attributes=True)
