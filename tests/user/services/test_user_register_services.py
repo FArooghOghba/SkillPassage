@@ -10,13 +10,12 @@ from sqlalchemy.ext.asyncio import (
     async_sessionmaker,
 )
 
-from src.user.constants import UserRole
 from src.user.exceptions import (
     UserAlreadyExistsError,
     UserNotFoundError,
 )
 from src.user.models import User
-from src.user.schemas.user_profile_schemas import UserProfileCreate
+from src.user.schemas.user_base_profile_schemas import UserBaseProfileCreate
 from src.user.schemas.user_schemas import UserCreate
 from src.user.services.registration_services import register_user
 from src.user.services.user_profile_services import get_user_profile_by_user_id
@@ -60,7 +59,7 @@ class TestRegisterUser:
         phone_number = first_test_user_profile_payload["phone_number"]
 
         user_data = UserCreate(**first_test_user_client_payload)
-        profile_data = UserProfileCreate(**first_test_user_profile_payload)
+        profile_data = UserBaseProfileCreate(**first_test_user_profile_payload)
 
         await register_user(
             db=db_session,
@@ -82,7 +81,6 @@ class TestRegisterUser:
         assert user.hashed_password != password
         assert user.is_active is True
 
-        assert profile.role == UserRole.CLIENT.value
         assert profile.first_name == first_name
         assert profile.last_name == last_name
         assert profile.phone_number == phone_number
@@ -109,7 +107,9 @@ class TestRegisterUser:
         password = first_test_user_client_payload["password"]
 
         user_data = UserCreate(**first_test_user_client_payload)
-        profile_data = UserProfileCreate(**first_test_user_profile_payload)
+        profile_data = UserBaseProfileCreate(
+            **first_test_user_profile_payload
+        )
 
         user = await register_user(
             db=db_session,
@@ -144,7 +144,7 @@ class TestRegisterUser:
         first_test_user_profile_payload.pop("phone_number")
 
         user_data = UserCreate(**first_test_user_client_payload)
-        profile_data = UserProfileCreate(
+        profile_data = UserBaseProfileCreate(
             **first_test_user_profile_payload
         )
 
@@ -191,7 +191,9 @@ class TestRegisterUser:
         first_test_user_client_payload["email"] = existed_email
 
         user_data = UserCreate(**first_test_user_client_payload)
-        profile_data = UserProfileCreate(**first_test_user_profile_payload)
+        profile_data = UserBaseProfileCreate(
+            **first_test_user_profile_payload
+        )
 
         with pytest.raises(UserAlreadyExistsError) as exc_info:
             await register_user(
@@ -230,7 +232,9 @@ class TestRegisterUser:
         first_test_user_client_payload["username"] = existed_username
 
         user_data = UserCreate(**first_test_user_client_payload)
-        profile_data = UserProfileCreate(**first_test_user_profile_payload)
+        profile_data = UserBaseProfileCreate(
+            **first_test_user_profile_payload
+        )
 
         with pytest.raises(UserAlreadyExistsError) as exc_info:
             await register_user(
@@ -273,7 +277,9 @@ class TestRegisterUser:
         """
         # Setup test data
         user_data = UserCreate(**first_test_user_client_payload)
-        profile_data = UserProfileCreate(**first_test_user_profile_payload)
+        profile_data = UserBaseProfileCreate(
+            **first_test_user_profile_payload
+        )
 
         # Mock profile creation to fail
         async def mock_create_profile(*args: Any, **kwargs: Any) -> None:
@@ -323,7 +329,7 @@ class TestRegisterUser:
 
         # Act & Assert
         with pytest.raises(ValueError) as exc_info:
-            invalid_profile_data = UserProfileCreate(
+            invalid_profile_data = UserBaseProfileCreate(
                 **first_test_user_profile_payload
             )
             await register_user(
@@ -383,12 +389,12 @@ class TestRegisterUser:
         # Create Pydantic model instances from the test data
         # These objects will be used for the registration attempts
         first_user_data = UserCreate(**first_test_user_client_payload)
-        first_profile_data = UserProfileCreate(
+        first_profile_data = UserBaseProfileCreate(
             **first_test_user_profile_payload
         )
 
         second_user_data = UserCreate(**second_test_user_client_payload)
-        second_profile_data = UserProfileCreate(
+        second_profile_data = UserBaseProfileCreate(
             **first_test_user_profile_payload
         )
 
@@ -397,7 +403,7 @@ class TestRegisterUser:
         # This abstracts away the session management and error handling logic
         async def attempt_registration(
                 user_schema: UserCreate,
-                profile_schema: UserProfileCreate
+                profile_schema: UserBaseProfileCreate
         ) -> Union[User, Exception]:
             try:
                 # Create a fresh session for this specific registration
