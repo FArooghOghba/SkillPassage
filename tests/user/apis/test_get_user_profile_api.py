@@ -8,10 +8,9 @@ from fastapi import status
 from httpx import AsyncClient
 
 from src.user.models import (
+    BaseUserProfile as UserProfileModel,
     User as UserModel,
-    UserProfile as UserProfileModel,
 )
-from src.user.schemas.user_profile_schemas import UserProfile as ProfileSchema
 
 
 USER_PROFILE_ME_URL = "/api/v1/user/me"
@@ -43,19 +42,27 @@ class TestGetCurrentUserProfileAPI:
         response = await client.get(
             url=USER_PROFILE_ME_URL, headers=headers
         )
-
         assert response.status_code == status.HTTP_200_OK
-        response_data = response.json()
 
-        # Validate against the Pydantic UserProfile schema
-        profile = ProfileSchema(**response_data)
+        user_email = first_test_client_user.email
+        user_username = first_test_client_user.username
 
-        assert profile.id == first_test_client_profile.id
-        assert profile.user_id == first_test_client_user.id
-        assert profile.first_name == first_test_client_profile.first_name
-        assert profile.last_name == first_test_client_profile.last_name
-        assert profile.phone_number == first_test_client_profile.phone_number
-        assert profile.role == first_test_client_profile.role
+        user_first_name = first_test_client_profile.first_name
+        user_last_name = first_test_client_profile.last_name
+        user_phone = first_test_client_profile.phone_number
+
+        response_user_data = response.json()
+
+        assert response_user_data["email"] == user_email
+        assert response_user_data["username"] == user_username
+        assert response_user_data['is_active'] is True
+        assert response_user_data['is_superuser'] is False
+        assert response_user_data['professional_profile'] is None
+
+        response_profile_data = response_user_data['profile']
+        assert response_profile_data["first_name"] == user_first_name
+        assert response_profile_data["last_name"] == user_last_name
+        assert response_profile_data["phone_number"] == user_phone
 
     async def test_api_get_me_current_user_unauthenticated_return_error(
             self, client: AsyncClient
@@ -153,11 +160,10 @@ class TestGetCurrentUserProfileAPI:
         headers = auth_headers_for_user(first_test_client_user)
 
         response = await client.get(url=USER_PROFILE_ME_URL, headers=headers)
-        assert response.status_code == status.HTTP_404_NOT_FOUND
+        assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
 
         response_data = response.json()
-        user_id = first_test_client_user.id
-        expected_msg = f"User not found with User ID (Profile): {user_id}"
+        expected_msg = "User profile data is missing."
         assert response_data["detail"] == expected_msg
 
     async def test_api_get_me_current_user_with_expired_token_return_error(
