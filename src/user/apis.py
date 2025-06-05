@@ -17,13 +17,9 @@ from fastapi import (
 
 from src.auth.dependencies import CurrentActiveUser
 from src.db.session import DBAsyncSession
-from src.user.exceptions import (
-    UserAlreadyExistsError,
-    UserNotFoundError,
-)
-from src.user.schemas.user_profile_schemas import (
-    UserProfile as UserProfileSchema,
-    UserProfileCreate as UserProfileCreateSchema,
+from src.user.exceptions import UserAlreadyExistsError
+from src.user.schemas.user_base_profile_schemas import (
+    UserBaseProfileCreate as UserBaseProfileCreateSchema,
 )
 from src.user.schemas.user_registration_schema import RegisterUserRequest
 from src.user.schemas.user_schemas import (
@@ -31,7 +27,6 @@ from src.user.schemas.user_schemas import (
     UserCreate as UserCreateSchema,
 )
 from src.user.services.registration_services import register_user
-from src.user.services.user_profile_services import get_user_profile_by_user_id
 
 
 logger = logging.getLogger(__name__)
@@ -75,10 +70,18 @@ async def register_user_endpoint(
     """
     try:
         # Create UserCreate instance from the request data
-        user_schema = UserCreateSchema.model_validate(request_data)
+        user_schema = UserCreateSchema(
+            email=request_data.email,
+            username=request_data.username,
+            password=request_data.password
+        )
 
         # Create UserProfileCreate instance from the request data
-        profile_schema = UserProfileCreateSchema.model_validate(request_data)
+        profile_schema = UserBaseProfileCreateSchema(
+            first_name=request_data.first_name,
+            last_name=request_data.last_name,
+            phone_number=request_data.phone_number
+        )
 
         logger.debug(f"Attempting to register user: {request_data.email}")
 
@@ -128,43 +131,42 @@ async def register_user_endpoint(
 
 @router.get(
     path="/me",
-    response_model=UserProfileSchema,
+    response_model=UserSchema,
     status_code=status.HTTP_200_OK,
-    summary="Get current authenticated user's profile",
+    summary="Get current authenticated user's data",
     description="""
-        Retrieves the profile information for the currently authenticated and
-        active user. This endpoint uses the dependency injection mechanism to
-        ensure that the current user is active. If the user is inactive, a
-        403 Forbidden response with a detail message indicating the account is
-        inactive will be returned.
+        Retrieves the complete data for the currently authenticated and
+        active user, including their base profile.
+        This endpoint uses dependency injection to ensure the user is
+        authenticated, active, and has essential profile data.
+        Errors like inactive user or missing profile data are handled by
+        the authentication dependencies, returning appropriate HTTP status
+        codes.
     """,
     responses={
         status.HTTP_200_OK: {
-            "description": "User profile information retrieved successfully.",
-            "model": UserProfileSchema
+            "description": "User data retrieved successfully.",
+            "model": UserSchema
         },
         status.HTTP_401_UNAUTHORIZED: {
-            "description": "Authentication required."
+            "description": "Authentication failed "
+                           "(e.g., invalid token, user not found from token)."
         },
         status.HTTP_403_FORBIDDEN: {
             "description": "User account is inactive."
         },
-        status.HTTP_404_NOT_FOUND: {
-            "description": "User profile not found."
-        },
         status.HTTP_500_INTERNAL_SERVER_ERROR: {
-            "description": "Internal server error."
+            "description": "Internal server error "
+                           "(e.g., user profile data integrity issue)."
         }
     }
 )
-async def get_user_profile_endpoint(
-        db: DBAsyncSession,
+async def get_current_user_endpoint(
         current_user: CurrentActiveUser,
-) -> UserProfileSchema:
+) -> UserSchema:
     """Retrieves the profile for the currently authenticated and active user.
 
     Args:
-        db: Database session
         current_user: The authenticated and active user instance
 
     Returns:
@@ -174,47 +176,5 @@ async def get_user_profile_endpoint(
         HTTPException: In the case of unexpected errors, or if
         the user is inactive.
     """
-    try:
-        logger.debug(
-            msg=f"Attempting to get user profile "
-                f"for user ID: {current_user.id}"
-        )
-
-        # Get the user profile by the current user's ID
-        user_profile = await get_user_profile_by_user_id(
-            db=db, user_id=current_user.id
-        )
-
-        # Log the successful retrieval of the user profile
-        logger.info(
-            msg=f"Successfully retrieved user profile for "
-            f"user ID: {current_user.id}"
-        )
-        return user_profile  # type: ignore[return-value]
-
-    except UserNotFoundError as e:
-        # Log the occurrence of a UserNotFoundError
-        logger.warning(
-            msg=f"User profile not found for "
-                f"user: {current_user.id}: {e.detail}"
-        )
-        # Raise an HTTPException with a 404 Not Found status code
-        # and the detail message from the UserNotFoundError
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=e.detail
-        ) from e
-    except Exception as e:
-        # Log the occurrence of any other unexpected error
-        logger.error(
-            msg=f"Unexpected error retrieving profile for "
-                f"user ID {current_user.id}: {e}",
-            exc_info=True
-        )
-        # Raise an HTTPException with a 500 Internal Server Error
-        # status code and a detail message indicating an unexpected error
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="An unexpected error occurred while retrieving "
-                   "the user profile.",
-        ) from e
+    logger.info(f"Providing data for user ID: {current_user.id}")
+    return current_user  # type: ignore[return-value]
