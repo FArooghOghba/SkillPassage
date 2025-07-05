@@ -10,7 +10,8 @@ from src.core.config import db_settings
 from src.db.base import Base
 
 # Explicitly import all modules containing your table definitions
-from src.user import models as user_models_module # Import the module
+from src.user import models as user_models_module
+from src.booth import models as booth_models_module
 # from src.product import models as product_models_module # And others
 
 # this is the Alembic Config object, which provides
