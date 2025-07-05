@@ -1,5 +1,6 @@
 """User-related database models."""
 from datetime import datetime
+from typing import TYPE_CHECKING
 from uuid import (
     UUID,
     uuid4,
@@ -20,6 +21,10 @@ from sqlalchemy.orm import (
 )
 
 from src.db.base import BaseModel
+
+
+if TYPE_CHECKING:
+    from src.booth.models import Booth
 
 
 class User(BaseModel):
@@ -71,6 +76,11 @@ class User(BaseModel):
         back_populates="user",  # access user from profile via profile.user
         uselist=False,  # ensures a user has exactly one profile (one-to-one)
         cascade="all, delete-orphan"
+    )
+    booths: Mapped[list["Booth"]] = relationship(
+        back_populates="owner",
+        cascade="all, delete-orphan"
+        # If user is deleted, their booths are deleted
     )
 
     __table_args__ = (
