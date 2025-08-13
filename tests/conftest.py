@@ -15,6 +15,7 @@ from src.core.config import DatabaseSettings
 from src.db.base import Base
 from src.db.session import get_db
 from src.main import app
+from tests.factories.booth_factories import BoothFactory
 from tests.factories.user_factories import (
     UserBaseProfileFactory,
     UserFactory,
@@ -25,6 +26,7 @@ from tests.factories.user_factories import (
 pytest_plugins = [
     "tests.fixtures.user_fixtures",
     "tests.fixtures.auth_fixtures",
+    "tests.fixtures.booth_fixtures",
     # Add other fixture modules here as needed:
     # "tests.fixtures.auth_fixtures",
     # "tests.fixtures.post_fixtures",
@@ -288,6 +290,7 @@ def set_session_for_factories(db_session: AsyncSession) -> None:
     """
     UserFactory._meta.sqlalchemy_session = db_session
     UserBaseProfileFactory._meta.sqlalchemy_session = db_session
+    BoothFactory._meta.sqlalchemy_session = db_session
     # Add other factories here as needed:
     # OtherFactory._meta.sqlalchemy_session = db_session
     # Example: PostFactory._meta.sqlalchemy_session = db_session
