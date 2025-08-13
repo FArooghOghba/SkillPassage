@@ -4,7 +4,6 @@ This module defines the schema classes used for validating and serializing
 booth data throughout the application. It includes schemas for various
 booth-related operations such as booth creation, updates, and API responses.
 """
-from typing import TYPE_CHECKING
 from uuid import UUID
 
 from pydantic import (
@@ -14,10 +13,7 @@ from pydantic import (
 )
 
 from src.booth.constants import BoothStatus
-
-
-if TYPE_CHECKING:
-    from src.user.schemas.user_schemas import User as UserResponseSchema
+from src.user.schemas.user_schemas import User as UserResponseSchema
 
 
 class BoothBase(BaseModel):
@@ -118,7 +114,7 @@ class BoothResponse(BoothBase):
 
     # Nest the owner's information.
     # We use the UserResponseSchema which is the public-facing user schema.
-    owner: "UserResponseSchema"
+    owner: UserResponseSchema
 
     # Important: This allows Pydantic to create this schema from
     # an ORM model instance.
